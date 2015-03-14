@@ -42,3 +42,10 @@ typedef struct NodeLabel{
     ParamNode param;
   };
 } Node;
+
+Node *new_command(char* command, Node *childparams);
+Node *new_pipe(Node *command, Node *pipe);
+Node *new_param(char *param);
+Node *new_params(Node *first, Node *second);
+
+#endif
