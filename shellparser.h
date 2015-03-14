@@ -48,4 +48,6 @@ Node *new_pipe(Node *command, Node *pipe);
 Node *new_param(char *param);
 Node *new_params(Node *first, Node *second);
 
+void freeNode(Node *np);
+
 #endif

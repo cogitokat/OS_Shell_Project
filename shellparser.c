@@ -34,6 +34,34 @@ Node *new_param(char* param) {
 }
 
 Node *new_params(Node *first, Node *second) {
+void freeNode(Node *np){
+  if (np == NULL) {
+    return;
+  } else {
+    switch (np->type) {
+      case CommandType:
+        free((np->command).command);
+        freeNode((np->command).allparams);
+        break;
+      case PipeType:
+        freeNode((np->pipe).command);
+        freeNode((np->pipe).pipe);
+        break;
+      case ParamsType:
+        freeNode((np->params).first);
+        freeNode((np->params).second);
+        break;
+      case ParamType:
+        free((np->param).param);
+        break;
+      default:
+        fprintf(stderr, "Error in freeNode(): Invalid Node Type");
+        exit(-1);
+    }   
+    free(np);
+  }
+}
+
   Node *np = _new_node(CommandType);
   CommandNode node;
   node.command = command;
@@ -41,4 +69,5 @@ Node *new_params(Node *first, Node *second) {
   np->command = node;
   return np;
 }
+
 
