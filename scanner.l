@@ -1,15 +1,16 @@
 %{
-#include "scanner.h"
+#include "y.tab.h"
 %}
 
 %%
 
-[1-9][0-9]*                       	 return NUMBER;
+0                       {yylval.num = atoi(yytext); return NUMBER;}
+[1-9][0-9]*             {yylval.num = atoi(yytext); return NUMBER;}
+([A-Za-z]|[0-9]|-)([A-Za-z]|[0-9]|_|\.)* {yylval.s = strdup(yytext); return WORD;}
+[|\n]                   {return *yytext;}
+[ \t\r]+                {;}
 
-([A-Za-z]|[0-9]|-)([A-Za-z]|[0-9]|_|\.)* return WORD;
-[|] 					 return PIPE;
-[ \t\n]+                		 ;
-.                       		 printf("unexpected character\n");
+.                       {yyerror("invalid character");}
 
 %%
 

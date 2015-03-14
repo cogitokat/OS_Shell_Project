@@ -1,10 +1,11 @@
 all: scanner
 
-scanner: scanner.l scanner.h scanner.c
+scanner: scanner.l scanner.y
+	bison -y -d scanner.y
 	flex scanner.l
-	gcc -o scanner lex.yy.c scanner.c
+	gcc -o scanner y.tab.c lex.yy.c
 
 .PHONY: clean
 clean:
 	rm -f scanner
-	rm -f lex.yy.c
+	rm -f *.o lex.yy.c y.tab.*
