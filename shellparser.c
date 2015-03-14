@@ -61,13 +61,3 @@ void freeNode(Node *np){
     free(np);
   }
 }
-
-  Node *np = _new_node(CommandType);
-  CommandNode node;
-  node.command = command;
-  node.childparams = childparams;
-  np->command = node;
-  return np;
-}
-
-
