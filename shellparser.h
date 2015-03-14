@@ -50,4 +50,6 @@ Node *new_params(Node *first, Node *second);
 
 void freeNode(Node *np);
 
+int printNode(Node *np);
+
 #endif

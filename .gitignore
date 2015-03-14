@@ -28,6 +28,7 @@
 *.x86_64
 *.hex
 scanner
+shell
 
 # flex/bison
 lex.yy.c
