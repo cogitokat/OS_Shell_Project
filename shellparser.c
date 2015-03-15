@@ -3,6 +3,11 @@
 #include "shellparser.h"
 #include "y.tab.h"
 
+#define MAX_LENGTH 1024
+
+extern int yyparse();
+extern void yy_scan_string(const char *str);
+
 Node *_new_node(NodeEnum type) {
   Node *np = (Node *)malloc(sizeof(Node));
   np->type = type;
@@ -124,3 +129,19 @@ int printNode(Node *np) {
     return ret;
   }
 }
+
+int main() {
+  char line[MAX_LENGTH+1];
+  int err = 0;
+  while(err==0) {
+    printf("HEY: ");
+    if (fgets(line, MAX_LENGTH, stdin) != NULL) {
+      yy_scan_string(line);
+      err  = yyparse();
+    } else {
+      continue;
+    }   
+  }
+  return err;
+}
+

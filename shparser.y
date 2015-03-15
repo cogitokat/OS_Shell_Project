@@ -1,7 +1,9 @@
 %{
 #include <stdio.h>
 #include <stdlib.h>
+/*#include <string.h>*/
 #include "shellparser.h"
+#define MAX_LENGTH 1024
 
 void yyerror(const char *msg);
 int yylineno;
@@ -25,11 +27,14 @@ int yylex(void);
 
 %%
 
+start : line				{fprintf(stdout, "start\n");}
+
 line : line command '\n'                {fprintf(stdout, "line command\nWalking the tree...\n"); 
-     					 printNode($2); freeNode($2);}
+     					 printNode($2); freeNode($2); fprintf(stdout, "\n"); YYACCEPT;}
      | line commands '\n'               {fprintf(stdout, "line commands\nWalking the tree...\n"); 
-					 printNode($2); freeNode($2);}
+					 printNode($2); freeNode($2); fprintf(stdout, "\n"); YYACCEPT;}
      | /*EMPTY*/
+     | line '\n'
      ;
 
 command : WORD                          {fprintf(stdout, "WORD (%s)\n", $1); $$ = new_command($1, NULL);}
@@ -54,7 +59,24 @@ void yyerror(const char *msg) {
 	exit(1);
 }
 
-int main(void){
+/*
+int main(void) {
   yyparse();
   return 0;
-}
+}*/
+/*
+int main() {
+  char line[MAX_LENGTH+1];
+  int err = 0;
+  while(err==0) {
+    printf("HEY: ");
+    if (fgets(line, MAX_LENGTH, stdin) != NULL) {
+      yy_scan_string(line);
+      err  = yyparse();
+    } else {
+      continue;
+    }
+  }
+  return err;
+}*/
+
