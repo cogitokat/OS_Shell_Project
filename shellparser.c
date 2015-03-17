@@ -129,7 +129,7 @@ int printNode(Node *np) {
     return ret;
   }
 }
-
+/*
 int main() {
   char line[MAX_LENGTH+1];
   int err = 0;
@@ -144,4 +144,4 @@ int main() {
   }
   return err;
 }
-
+*/
