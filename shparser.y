@@ -30,10 +30,10 @@ int yylex(void);
 start : line				{fprintf(stdout, "start\n");}
 
 line : line command '\n'                {fprintf(stdout, "line command\nWalking the tree...\n"); 
-     					 printNode($2); freeNode($2);
+     					 evalNode($2); freeNode($2);
 					 fprintf(stdout, "\nHEY: ");}
      | line commands '\n'               {fprintf(stdout, "line commands\nWalking the tree...\n"); 
-					 printNode($2); freeNode($2);
+					 evalNode($2); freeNode($2);
 					 fprintf(stdout, "\nHEY: ");}
      | /*EMPTY*/
      | line '\n'
@@ -63,7 +63,7 @@ void yyerror(const char *msg) {
 
 
 int main(void) {
-  fprintf(stdout, "HEY: ");
+  fprintf(stdout, "$: ");
   yyparse();
   return 0;
 }

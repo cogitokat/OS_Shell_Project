@@ -51,5 +51,8 @@ Node *new_params(Node *first, Node *second);
 void freeNode(Node *np);
 
 int printNode(Node *np);
+int evalNode(Node *np);
+void evalPipe(Node *np);
+void evalCommand(Node *np);
 
 #endif

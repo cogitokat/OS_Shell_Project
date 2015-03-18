@@ -129,6 +129,40 @@ int printNode(Node *np) {
     return ret;
   }
 }
+
+int evalNode(Node *np) {
+  
+  if (np == NULL) {
+    return 0;
+  } else {
+    int ret = 0;
+    switch (np->type) {
+      case CommandType:
+        evalCommand(np);
+        break;
+      case PipeType:
+        evalPipe(np);
+        break;
+      default:
+        fprintf(stderr, "Error: cannot print node of invalid type");
+        ret = -1;
+        break;
+    }
+    return ret;
+  }
+}
+
+void evalCommand(Node *np) 
+{
+  printf("Evaluating command\n");
+}
+
+void evalPipe(Node *np) 
+{
+  printf("Evaluating pipe\n");
+
+}
+
 /*
 int main() {
   char line[MAX_LENGTH+1];
