@@ -1,9 +1,7 @@
 %{
 #include <stdio.h>
 #include <stdlib.h>
-/*#include <string.h>*/
 #include "shellparser.h"
-#define MAX_LENGTH 1024
 
 void yyerror(const char *msg);
 int yylineno;
@@ -51,7 +49,7 @@ commands : commands '|' command         {fprintf(stdout, "commands | command\n")
          ;
 
 params : param                          {fprintf(stdout, "param\n"); $$ = new_params($1, NULL);}
-       | param params                   {fprintf(stdout, "param params\n"); $$ = new_params($2, $1);}
+       | param params                   {fprintf(stdout, "param params\n"); $$ = new_params($1, $2);}
        ;
 
 %%
@@ -67,19 +65,3 @@ int main(void) {
   yyparse();
   return 0;
 }
-/*
-int main() {
-  char line[MAX_LENGTH+1];
-  int err = 0;
-  while(err==0) {
-    printf("HEY: ");
-    if (fgets(line, MAX_LENGTH, stdin) != NULL) {
-      yy_scan_string(line);
-      err  = yyparse();
-    } else {
-      continue;
-    }
-  }
-  return err;
-}
-*/
