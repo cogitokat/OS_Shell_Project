@@ -184,6 +184,7 @@ void evalCommand(Node *np)
     char *command = (np->command).command; // Get the command name string.
     Node *childparams = (np->command).childparams; // Get the childparams node.
     int numparams = countArgs(childparams); // Count the number of params.
+    printf("Numparams: %d\n", numparams); // Print numparams, for debugging.
     char **paramslist = (char**)malloc((numparams+2) * sizeof(char*)); // Pointer to pointer to an array
     int i = 0;
     paramslist[0] = command; // The first param in the array is always the command name.
@@ -192,8 +193,9 @@ void evalCommand(Node *np)
     for (i = 0; i < numparams; i++) {
       // Basically, add the name of the param that is in the first node.
       // (Remember, the params are a right-skewed binary tree.)
-      paramslist[i+1] = (((((np)->params).first)->param).param);
-      ((np)->params).second; // Make curr point to the second node.
+      paramslist[i+1] = ((((curr)->params).first)->param).param;
+      printf("Param str: %s\n", ((((curr)->params).first)->param).param); // Debugging
+      curr = ((curr)->params).second; // Make curr point to the second node.
     }
     if (execvp(command, paramslist) == -1) { // Execute the command with execvp().
       fprintf(stderr, "Can't execute %s\n.", command); // Tell us if there's an error.

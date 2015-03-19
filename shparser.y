@@ -51,7 +51,7 @@ commands : commands '|' command         {fprintf(stdout, "commands | command\n")
          ;
 
 params : param                          {fprintf(stdout, "param\n"); $$ = new_params($1, NULL);}
-       | param params                   {fprintf(stdout, "param params\n"); $$ = new_params($2, $1);}
+       | param params                   {fprintf(stdout, "param params\n"); $$ = new_params($1, $2);}
        ;
 
 %%
