@@ -165,24 +165,23 @@ void evalCommand(Node *np)
     wait((int *) 0); // so wait. (Null pointer - return value not saved.)
   }
   else if (process == 0) { // If process == 0, we are in the child...
-    char *command = np->type.CommandNode.command; // Get the command name string.
     Node *childparams = np->type.CommandNode.childparams; // Get the childparams node.
     int numparams = countArgs(childparams); // Count the number of params.
     printf("Numparams: %d\n", numparams); // Print numparams, for debugging.
     char *paramslist[numparams+2]; // Array of the params.
     int i = 0;
-    paramslist[0] = command; // The first param in the array is always the command name.
+    paramslist[0] = np->type.CommandNode.command; // The first param in the array is always the command name.
     paramslist[numparams+1] = NULL; // The last thing in the array must be null.
     Node *curr = childparams; // A node pointer that will indicate the current node.
     for (i = 0; i < numparams; i++) {
-      // Basically, add the name of the param that is in the first node.
+      // Add the name of the param that is in the first node.
       // (Remember, the params are a right-skewed binary tree.)
       paramslist[i+1] = (curr->type.ParamsNode.first)->type.ParamNode.param;
       printf("Param str: %s\n", (curr->type.ParamsNode.first)->type.ParamNode.param); // Debugging
       curr = curr->type.ParamsNode.second; // Make curr point to the second node.
     }
-    if (execvp(command, paramslist) == -1) { // Execute the command with execvp().
-      fprintf(stderr, "Can't execute %s\n.", command); // Tell us if there's an error.
+    if (execvp(paramslist[0], paramslist) == -1) { // Execute the command with execvp().
+      fprintf(stderr, "Can't execute %s\n.", paramslist[0]); // Tell us if there's an error.
       exit(1); // Exit with a non-zero status.
     } else {
       exit(0); // Exit with a zero status (no problems).
