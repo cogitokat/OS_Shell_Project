@@ -33,5 +33,6 @@ int printNode(Node *np);
 int evalNode(Node *np);
 void evalPipe(Node *np);
 void evalCommand(Node *np);
+void createProcCommand(Node *np);
 
 #endif

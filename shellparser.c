@@ -130,7 +130,7 @@ int evalNode(Node *np) {
     int ret = 0;
     switch (np->label) {
       case command_node:
-        evalCommand(np);
+        createProcCommand(np);
         break;
       case pipe_node:
         evalPipe(np);
@@ -156,16 +156,8 @@ int countArgs(Node *paramsptr) {
 }
 
 // Evaluate a single command.
-void evalCommand(Node *np) 
-{
-  printf("Evaluating command\n"); // Debug statement.
-  int process;
-  process = fork(); // Create a new process for the command.
-  if (process > 0) { // If the process is > 0, we are still the parent,
-    wait((int *) 0); // so wait. (Null pointer - return value not saved.)
-  }
-  else if (process == 0) { // If process == 0, we are in the child...
-    Node *childparams = np->type.CommandNode.childparams; // Get the childparams node.
+void evalCommand(Node *np) {
+	Node *childparams = np->type.CommandNode.childparams; // Get the childparams node.
     int numparams = countArgs(childparams); // Count the number of params.
     printf("Numparams: %d\n", numparams); // Print numparams, for debugging.
     char *paramslist[numparams+2]; // Array of the params.
@@ -186,6 +178,20 @@ void evalCommand(Node *np)
     } else {
       exit(0); // Exit with a zero status (no problems).
     }
+}
+
+// Create a new process for a single command
+// and pass to evalCommand() when in the child process.
+void createProcCommand(Node *np) 
+{
+  printf("Evaluating command\n"); // Debug statement.
+  int process;
+  process = fork(); // Create a new process for the command.
+  if (process > 0) { // If the process is > 0, we are still the parent,
+    wait((int *) 0); // so wait. (Null pointer - return value not saved.)
+  }
+  else if (process == 0) { // If process == 0, we are in the child...
+    evalCommand(np);
   }
   else if (process == -1) { // If process == -1, then something went wrong.
     fprintf(stderr, "Can't fork!"); // Error message.
