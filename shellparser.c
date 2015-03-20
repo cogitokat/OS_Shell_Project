@@ -3,51 +3,39 @@
 #include "shellparser.h"
 #include "y.tab.h"
 
-// Create a new node. This allocates the memory for a node
-// and gives it a type.
-Node *_new_node(NodeEnum type) {
-  Node *np = (Node *)malloc(sizeof(Node));
-  np->type = type;
-  return np;
-}
-
 // Functions for creating different types of nodes and
 // adding values and node pointers to them.
 // A CommandNode, PipeNode, ParamNode or ParamsNode is
 // inserted into a Node.
 Node *new_command(char* command, Node *childparams) {
-  Node *np = _new_node(CommandType);
-  CommandNode node;
-  node.command = command;
-  node.childparams = childparams;
-  np->command = node;
-  return np;
+  Node* newnode = (Node*) malloc(sizeof(Node));
+  newnode->label = command_node;
+  newnode->type.CommandNode.command = command;
+  newnode->type.CommandNode.childparams = childparams;
+  return newnode;
 }
 
 Node *new_pipe(Node *command, Node *pipe) {
-  Node *np = _new_node(PipeType);
-  PipeNode node;
-  node.command = command;
-  node.pipe = pipe;
-  np->pipe = node;
-  return np;
+  Node* newnode = (Node*) malloc(sizeof(Node));
+  newnode->label = pipe_node;
+  newnode->type.PipeNode.command = command;
+  newnode->type.PipeNode.pipe = pipe;
+  return newnode;
 }
 
 Node *new_param(char* param) {
-  Node *np = _new_node(ParamType);
-  ParamNode node;
-  node.param = param;
-  np->param = node;
-  return np;
+  Node* newnode = (Node*) malloc(sizeof(Node));
+  newnode->label = param_node;
+  newnode->type.ParamNode.param = param;
+  return newnode;
 }
 
 Node *new_params(Node *first, Node *second) {
-  Node *np = _new_node(ParamsType);
-  ParamsNode node;
-  node.first = first;
-  node.second = second;
-  np->params = node;
-  return np;
+  Node* newnode = (Node*) malloc(sizeof(Node));
+  newnode->label = params_node;
+  newnode->type.ParamsNode.first = first;
+  newnode->type.ParamsNode.second = second;
+  return newnode; 
 }
 
 // Recursive function to free nodes...
@@ -55,27 +43,27 @@ void freeNode(Node *np){
   if (np == NULL) { // Return if there are no nodes left.
     return;
   } else {
-    switch (np->type) {
-      // For each case, based on the node type,
+    switch (np->label) {
+      // For each case, based on the node tag,
       // free the value, or free the nodes it 
       // points to recursively.
-      case CommandType:
-        free((np->command).command);
-        freeNode((np->command).childparams);
+      case command_node:
+        free(np->type.CommandNode.command);
+        freeNode(np->type.CommandNode.childparams);
         break;
-      case PipeType:
-        freeNode((np->pipe).command);
-        freeNode((np->pipe).pipe);
+      case pipe_node:
+        freeNode(np->type.PipeNode.command);
+        freeNode(np->type.PipeNode.pipe);
         break;
-      case ParamsType:
-        freeNode((np->params).first);
-        freeNode((np->params).second);
+      case params_node:
+        freeNode(np->type.ParamsNode.first);
+        freeNode(np->type.ParamsNode.second);
         break;
-      case ParamType:
-        free((np->param).param);
+      case param_node:
+        free(np->type.ParamNode.param);
         break;
       default:
-        fprintf(stderr, "Error in freeNode(): Invalid Node Type");
+        fprintf(stderr, "Error in freeNode(): Invalid Node Type.\n");
         exit(-1);
     }   
     free(np); // Free the np.
@@ -90,43 +78,39 @@ int printNode(Node *np) {
     return 0;
   } else {
     int ret = 0;
-    switch (np->type) {
-      case CommandType:
-        printf("%s ", (np->command).command);
-        if (printNode((np->command).childparams) < 0) {
+    switch (np->label) {
+      case command_node:
+        printf("%s \n", (np->type.CommandNode.command));
+        if (printNode(np->type.CommandNode.childparams) < 0) {
           ret = -1;
           break;
         }
-        ret = 0;
         break;
-      case PipeType:
-        if (printNode((np->pipe).command) < 0) {
+      case pipe_node:
+        if (printNode(np->type.PipeNode.command) < 0) {
           ret = -1;
           break;
         }
-        if ((np->pipe).pipe != NULL) {
-          printf(" | ");
-          if (printNode((np->pipe).pipe) < 0) {
+        if (np->type.PipeNode.pipe != NULL) {
+          printf(" | \n");
+          if (printNode(np->type.PipeNode.pipe) < 0) {
             ret = -1;
             break;
           }
         }
-        ret = 0;
         break;
-      case ParamType:
-        printf("%s ", (np->param).param);
-        ret = 0;
+      case param_node:
+        printf("%s \n", (np->type.ParamNode.param));
         break;
-      case ParamsType:
-        if (printNode((np->params).first) < 0) {
+      case params_node:
+        if (printNode(np->type.ParamsNode.first) < 0) {
           ret = -1;
           break;
         }
-        if (printNode((np->params).second) < 0) {
+        if (printNode(np->type.ParamsNode.second) < 0) {
           ret = -1;
           break;
         }
-        ret = 0;
         break;
       default:
         fprintf(stderr, "Error: cannot print node of invalid type");
@@ -144,11 +128,11 @@ int evalNode(Node *np) {
     return 0;
   } else {
     int ret = 0;
-    switch (np->type) {
-      case CommandType:
+    switch (np->label) {
+      case command_node:
         evalCommand(np);
         break;
-      case PipeType:
+      case pipe_node:
         evalPipe(np);
         break;
       default:
@@ -166,7 +150,7 @@ int evalNode(Node *np) {
 int countArgs(Node *paramsptr) {
   int count = 0;
   if (paramsptr != NULL) {
-    count = 1 + countArgs(((paramsptr)->params).second);
+    count = 1 + countArgs(paramsptr->type.ParamsNode.second);
   }
   return count;
 }
@@ -181,11 +165,11 @@ void evalCommand(Node *np)
     wait((int *) 0); // so wait. (Null pointer - return value not saved.)
   }
   else if (process == 0) { // If process == 0, we are in the child...
-    char *command = (np->command).command; // Get the command name string.
-    Node *childparams = (np->command).childparams; // Get the childparams node.
+    char *command = np->type.CommandNode.command; // Get the command name string.
+    Node *childparams = np->type.CommandNode.childparams; // Get the childparams node.
     int numparams = countArgs(childparams); // Count the number of params.
     printf("Numparams: %d\n", numparams); // Print numparams, for debugging.
-    char **paramslist = (char**)malloc((numparams+2) * sizeof(char*)); // Pointer to pointer to an array
+    char *paramslist[numparams+2]; // Array of the params.
     int i = 0;
     paramslist[0] = command; // The first param in the array is always the command name.
     paramslist[numparams+1] = NULL; // The last thing in the array must be null.
@@ -193,16 +177,14 @@ void evalCommand(Node *np)
     for (i = 0; i < numparams; i++) {
       // Basically, add the name of the param that is in the first node.
       // (Remember, the params are a right-skewed binary tree.)
-      paramslist[i+1] = ((((curr)->params).first)->param).param;
-      printf("Param str: %s\n", ((((curr)->params).first)->param).param); // Debugging
-      curr = ((curr)->params).second; // Make curr point to the second node.
+      paramslist[i+1] = (curr->type.ParamsNode.first)->type.ParamNode.param;
+      printf("Param str: %s\n", (curr->type.ParamsNode.first)->type.ParamNode.param); // Debugging
+      curr = curr->type.ParamsNode.second; // Make curr point to the second node.
     }
     if (execvp(command, paramslist) == -1) { // Execute the command with execvp().
       fprintf(stderr, "Can't execute %s\n.", command); // Tell us if there's an error.
-      free(paramslist); // Always clean up.
       exit(1); // Exit with a non-zero status.
     } else {
-      free(paramslist); // Always clean up.
       exit(0); // Exit with a zero status (no problems).
     }
   }
