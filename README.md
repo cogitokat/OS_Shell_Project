@@ -2,7 +2,7 @@
 ---
 
 ### scanner
-For now, scanner takes a file as input and parses it.
+Scanner takes a file as input and parses it. Scanner is deprecated.
 
 ```
 make clean && make scanner
@@ -33,5 +33,5 @@ line representing the AST.
 make clean && make shell
 ./shell
 ```
-... then type some example commands. It is very buggy and does not execute
-anything, yet.
+... then type some example commands. Shell can execute single commands
+without piping or redirection.
