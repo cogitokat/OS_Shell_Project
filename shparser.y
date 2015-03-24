@@ -1,11 +1,13 @@
 %{
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include "shellparser.h"
 
 void yyerror(const char *msg);
 int yylineno;
 int yylex(void);
+void displayPrompt(void);
 
 %}
 
@@ -28,11 +30,9 @@ int yylex(void);
 start : line				{fprintf(stdout, "start\n");}
 
 line : line command '\n'                {fprintf(stdout, "line command\nWalking the tree...\n"); 
-     					 evalNode($2); freeNode($2);
-					 fprintf(stdout, "\nHEY: ");}
+     					 evalNode($2); freeNode($2); displayPrompt();}
      | line commands '\n'               {fprintf(stdout, "line commands\nWalking the tree...\n"); 
-					 evalNode($2); freeNode($2);
-					 fprintf(stdout, "\nHEY: ");}
+					 evalNode($2); freeNode($2); displayPrompt();}
      | /*EMPTY*/
      | line '\n'
      ;
@@ -59,9 +59,14 @@ void yyerror(const char *msg) {
 	exit(1);
 }
 
+void displayPrompt(void) {
+  if(isatty(0)) {
+    fprintf(stdout, "$: ");
+  }
+}
 
 int main(void) {
-  fprintf(stdout, "$: ");
+  displayPrompt();
   yyparse();
   return 0;
 }
