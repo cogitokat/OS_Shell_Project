@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "shellparser.h"
+#include "builtins.h"
 #include "y.tab.h"
 
 // Functions for creating different types of nodes and
@@ -155,14 +157,47 @@ int countArgs(Node *paramsptr) {
   return count;
 }
 
+int checkBuiltin (char* command) {
+  int i = 0;
+  for (i = 0; i < ncmds; i++) {
+    char* testcmd = bitab[i].cmdname;
+    if(strcmp(testcmd, command) == 0){
+      return i;
+    }
+  }
+  return -1;
+}
+
+int checkAlias(char* command) {
+  return -1;
+}
+
 // Evaluate a single command.
 void evalCommand(Node *np) {
-	Node *childparams = np->type.CommandNode.childparams; // Get the childparams node.
-    int numparams = countArgs(childparams); // Count the number of params.
-    printf("Numparams: %d\n", numparams); // Print numparams, for debugging.
+  char *command = np->type.CommandNode.command;
+  Node *childparams = np->type.CommandNode.childparams; // Make a pointer to the params.
+  int numparams = countArgs(childparams); // Count the number of params.
+  int binum = checkBuiltin(command); // Check if it is a builtin command.
+  int alias = checkAlias(command); // Check if it is an alias.
+  if(binum > -1) { // Handle builtins.
+    printf("This is a builtin: %d.\n", binum); // Debugging
+    char *paramslist[numparams]; // Array of the params, no need for null entry.
+    int i;
+    Node *curr = childparams; // Pointer will indicate current node.
+    for (i = 0; i < numparams; i++) { // Fill in paramslist.
+      paramslist[i] = (curr->type.ParamsNode.first)->type.ParamNode.param;
+      curr = curr->type.ParamsNode.second;
+    }
+    if(bitab[binum].cmdfunc(numparams, paramslist) == -1){ // Call the builtin function.
+      fprintf(stderr, "Error with builtin.\n"); // If the function returns -1, error.
+      exit(1);
+    } else {
+      exit(0);
+    }
+  } else { // Handle regular commands.
     char *paramslist[numparams+2]; // Array of the params.
-    int i = 0;
-    paramslist[0] = np->type.CommandNode.command; // The first param in the array is always the command name.
+    int i;
+    paramslist[0] = command; // The first param in the array is always the command name.
     paramslist[numparams+1] = NULL; // The last thing in the array must be null.
     Node *curr = childparams; // A node pointer that will indicate the current node.
     for (i = 0; i < numparams; i++) {
@@ -178,6 +213,7 @@ void evalCommand(Node *np) {
     } else {
       exit(0); // Exit with a zero status (no problems).
     }
+  }
 }
 
 // Create a new process for a single command
