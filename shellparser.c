@@ -8,6 +8,8 @@
 #include "builtins.h"
 #include "y.tab.h"
 
+static void error_exit(const char *msg);
+
 // Functions for creating different types of nodes and
 // adding values and node pointers to them.
 // A CommandNode, PipeNode, ParamNode or ParamsNode is
@@ -227,7 +229,6 @@ int evalCommand(Node *np) {
 // and pass to evalCommand() when in the child process.
 void createProcCommand(Node *np) 
 {
-  printf("Evaluating command\n"); // Debug statement.
   int process;
   process = fork(); // Create a new process for the command.
   if (process > 0) { // If the process is > 0, we are still the parent,
@@ -237,29 +238,17 @@ void createProcCommand(Node *np)
     evalCommand(np);
   }
   else if (process == -1) { // If process == -1, then something went wrong.
-    fprintf(stderr, "Can't fork!"); // Error message.
-    exit(2); // Exit with a non-zero status.
+    error_exit("Can't fork!");
   }
 }
 
-int countCmds(Node *np) {
-  int count = 0;
-  if (np != NULL) {
-    count = 1 + countCmds(np->type.PipeNode.pipe);
-  }
-  return count;
-}
-
-// Here we will evaluate multiple commands that are 
-// piped together.
-
-//static int child = 0;
-
-void error_exit(const char *msg){
+static void error_exit(const char *msg){
   perror(msg);
   exit(EXIT_FAILURE);
 }
 
+// Here we will evaluate multiple commands that are 
+// piped together.
 void evalPipe(Node *np, int in_fd, pid_t pidToWait) {
   // Only wait if pidToWait is > 0, meaning it is a child
   if (pidToWait>0) {
@@ -283,7 +272,7 @@ void evalPipe(Node *np, int in_fd, pid_t pidToWait) {
         error_exit("Failed to redirect stdout");
       evalCommand(np->type.PipeNode.command);
     }
-    // Parent
+    // In parent
 
     // If this is not closed, then the second command hangs
     // closing the pipe is how the process know there is no 
@@ -298,7 +287,7 @@ void evalPipe(Node *np, int in_fd, pid_t pidToWait) {
     pid_t childpid;
     childpid = fork();
 
-    if (childpid == 0) {
+    if (childpid == 0) { // child
       if(in_fd != STDIN_FILENO) {
         if (dup2(in_fd, STDIN_FILENO) != -1)
           close(in_fd);
@@ -306,9 +295,11 @@ void evalPipe(Node *np, int in_fd, pid_t pidToWait) {
         }
       evalCommand(np->type.PipeNode.command);
     }
-
+    // in parent
+    // wait for the child to die before return
     waitpid(childpid, (int*)0, 0);
 
     return;
   }
 }
+

@@ -31,7 +31,7 @@ void freeNode(Node *np);
 
 int printNode(Node *np);
 int evalNode(Node *np);
-void evalPipe(Node *np, int in_fd, int first);
+void evalPipe(Node *np, int in_fd, pid_t pidToWait);
 int evalCommand(Node *np);
 void createProcCommand(Node *np);
 
