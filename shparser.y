@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include "builtins.h"
 #include "shellparser.h"
 
 void yyerror(const char *msg);
@@ -27,14 +28,14 @@ void displayPrompt(void);
 
 %%
 
-//start : line				{fprintf(stdout, "start\n");}
+//start : line        {fprintf(stdout, "start\n");}
 
 line : line command '\n'                {fprintf(stdout, "line command\nWalking the tree...\n"); 
-     					 evalNode($2); freeNode($2); displayPrompt();}
+               evalNode($2); freeNode($2); displayPrompt();}
      | line commands '\n'               {fprintf(stdout, "line commands\nWalking the tree...\n"); 
-					 evalNode($2); freeNode($2); displayPrompt();}
-     | /*EMPTY*/			
-     | line '\n'		
+           evalNode($2); freeNode($2); displayPrompt();}
+     | /*EMPTY*/      
+     | line '\n'    
      ;
 
 command : WORD                          {fprintf(stdout, "WORD (%s)\n", $1); $$ = new_command($1, NULL);}
@@ -55,8 +56,8 @@ params : param                          {fprintf(stdout, "param\n"); $$ = new_pa
 %%
 
 void yyerror(const char *msg) {
-	fprintf(stderr, "line %d: %s\n", yylineno, msg);
-	exit(1);
+  fprintf(stderr, "line %d: %s\n", yylineno, msg);
+  exit(1);
 }
 
 void displayPrompt(void) {
@@ -65,7 +66,18 @@ void displayPrompt(void) {
   }
 }
 
+void initialize(void) {
+  // Initialize variable arrays
+  int i;
+  for (i = 0; i < MAX_NUM_VARS; i++) {
+    variables[i][0] = '\0';
+    values[i][0] = '\0';
+    disabled[i] = 0;
+  }
+}
+
 int main(void) {
+  initialize();
   displayPrompt();
   yyparse();
   return 0;
