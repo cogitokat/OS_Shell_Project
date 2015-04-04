@@ -1,6 +1,9 @@
 #include <stdio.h>
+#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include "shellparser.h"
 #include "builtins.h"
 #include "y.tab.h"
@@ -135,7 +138,7 @@ int evalNode(Node *np) {
         createProcCommand(np);
         break;
       case pipe_node:
-        evalPipe(np);
+        evalPipe(np, STDIN_FILENO, 1);
         break;
       default:
         fprintf(stderr, "Error: cannot print node of invalid type");
@@ -173,14 +176,16 @@ int checkAlias(char* command) {
 }
 
 // Evaluate a single command.
-void evalCommand(Node *np) {
+int evalCommand(Node *np) {
+  fprintf(stderr, "Evaluating a command..\n");
+  int ret;
   char *command = np->type.CommandNode.command;
   Node *childparams = np->type.CommandNode.childparams; // Make a pointer to the params.
   int numparams = countArgs(childparams); // Count the number of params.
   int binum = checkBuiltin(command); // Check if it is a builtin command.
   int alias = checkAlias(command); // Check if it is an alias.
   if(binum > -1) { // Handle builtins.
-    printf("This is a builtin: %d.\n", binum); // Debugging
+    fprintf(stderr, "This is a builtin: %d.\n", binum); // Debugging
     char *paramslist[numparams]; // Array of the params, no need for null entry.
     int i;
     Node *curr = childparams; // Pointer will indicate current node.
@@ -190,9 +195,9 @@ void evalCommand(Node *np) {
     }
     if(bitab[binum].cmdfunc(numparams, paramslist) == -1){ // Call the builtin function.
       fprintf(stderr, "Error with builtin.\n"); // If the function returns -1, error.
-      exit(1);
+      ret = -1;
     } else {
-      exit(0);
+      ret = 0;;
     }
   } else { // Handle regular commands.
     char *paramslist[numparams+2]; // Array of the params.
@@ -204,16 +209,18 @@ void evalCommand(Node *np) {
       // Add the name of the param that is in the first node.
       // (Remember, the params are a right-skewed binary tree.)
       paramslist[i+1] = (curr->type.ParamsNode.first)->type.ParamNode.param;
-      printf("Param str: %s\n", (curr->type.ParamsNode.first)->type.ParamNode.param); // Debugging
+      fprintf(stderr, "Param str: %s\n", (curr->type.ParamsNode.first)->type.ParamNode.param); // Debugging
       curr = curr->type.ParamsNode.second; // Make curr point to the second node.
     }
+    fprintf(stderr, "Executing %s.\n", paramslist[0]);
     if (execvp(paramslist[0], paramslist) == -1) { // Execute the command with execvp().
-      fprintf(stderr, "Can't execute %s\n.", paramslist[0]); // Tell us if there's an error.
-      exit(1); // Exit with a non-zero status.
+      fprintf(stderr, "Can't execute %s.\n", paramslist[0]); // Tell us if there's an error.
+      ret = -1; // Exit with a non-zero status.
     } else {
-      exit(0); // Exit with a zero status (no problems).
+      ret = 0;; // Exit with a zero status (no problems).
     }
   }
+  return ret;
 }
 
 // Create a new process for a single command
@@ -235,10 +242,136 @@ void createProcCommand(Node *np)
   }
 }
 
+int countCmds(Node *np) {
+  int count = 0;
+  if (np != NULL) {
+    count = 1 + countCmds(np->type.PipeNode.pipe);
+  }
+  return count;
+}
+
 // Here we will evaluate multiple commands that are 
 // piped together.
-void evalPipe(Node *np) 
-{
-  printf("Evaluating pipe\n");
+/*
+void evalPipe(Node *np) {
+  pid_t pid1;
+  if ((pid1 = fork()) < 0) {
+    fprintf(stderr, "fork error\n");
+    exit(-1);
+  } else if (pid1 == 0) { // child
+    pid_t pid2;
+    int fd[2];
+    if (pipe(fd) < 0) {
+      fprintf(stderr, "pipe failed\n");
+      exit(-1);
+    }
+    if ((pid2 = fork()) < 0) {
+      fprintf(stderr, "fork error\n");
+      exit(-1);
+    } else if (pid2 == 0) { // child
+      close(STDOUT_FILENO);
+      dup(fd[1]); // fd[1] is the write end,  call dup fd[1] to stdout
+      close(fd[0]);
+      close(fd[1]);
+      // write to stdout
+      evalCommand(np->type.PipeNode.pipe->type.PipeNode.command); // output of will directed to pipe write end
+    } else { // parent
+      close(STDIN_FILENO);
+      dup(fd[0]); // fd[0] is the read end.
+      close(fd[0]);
+      close(fd[1]);
+      // read from(stdin) an empty pipe blocks reader.
+      evalCommand(np->type.PipeNode.command);
+    }
+  } else { // parent
+    if (waitpid(pid1, NULL, 0) < 0) {
+      fprintf(stderr, "wait error\n");
+      exit(-1);
+    }
+  }
+}*/
+static int child = 0;
 
+void error_exit(const char *kom){
+  perror(kom);
+  (child ? _exit : exit)(EXIT_FAILURE);
+}
+
+// If pidToWait <= 0 then do not wait
+void evalPipe(Node *np, int in_fd, pid_t pidToWait) {
+  if (pidToWait>0) {
+    fprintf(stderr, "Waiting to eval %s   PID waiting: %d\n", np->type.PipeNode.command->type.CommandNode.command, pidToWait);
+    waitpid(pidToWait, (int*)0, 0);
+    fprintf(stderr, "Done waiting for PID %d\n", pidToWait);
+  }
+
+  if (np->type.PipeNode.pipe!=NULL) {
+    // ** Not the last command
+    int fd[2];
+    pid_t childpid;
+
+    if ((pipe(fd) == -1) || ((childpid = fork()) == -1)) {
+      error_exit("Failed to setup pipeline");
+    }
+
+    if (childpid == 0){
+         child = 1;
+         fprintf(stderr, "Redirecting stdin to %d\n", in_fd);
+         if (dup2(in_fd, STDIN_FILENO) == -1)
+           error_exit("Failed to redirect stdin");
+         if (dup2(fd[1], STDOUT_FILENO) == -1)
+           error_exit("Failed to redirect stdout");
+         //fprintf(stderr, "closing file ids: %d %d\n", fd[1], in_fd);
+         //if (close(fd[1]) == -1)
+         //  error_exit("Failed to close extra pipe descriptors");
+         //if(close(in_fd) == -1)
+         //  error_exit("Failed to close in_fd");
+         //fprintf(stderr, "cmd [notlast]: %s\n", np->type.PipeNode.command->type.CommandNode.command);
+         fprintf(stderr, "buffer read-point: %d   buffer write-point: %d\n", fd[0], fd[1]);
+         fprintf(stderr, "recurse: %s   output fd: %d  input fd: %d\n", np->type.PipeNode.command->type.CommandNode.command, fd[1], in_fd);
+         evalCommand(np->type.PipeNode.command);
+    }
+    
+    close(fd[1]);
+
+    // Recursive
+    evalPipe(np->type.PipeNode.pipe, fd[0], childpid);
+
+  } else {
+    // ** Last Command
+    pid_t childpid;
+    childpid = fork();
+      
+    if (childpid == 0) {
+      fprintf(stderr, "cmd last: %s   output fd: %d  input fd: %d\n", np->type.PipeNode.command->type.CommandNode.command, STDOUT_FILENO, in_fd);
+      if(in_fd != STDIN_FILENO) {
+        if (dup2(in_fd, STDIN_FILENO) != -1)
+          close(in_fd);
+        else error_exit("Failed to redirect stdin");
+        }
+      evalCommand(np->type.PipeNode.command);
+    }
+
+    waitpid(childpid, (int*)0, 0);
+
+    return;
+  }
+
+  /*if(np->type.PipeNode.pipe == NULL) {
+    printf("last cmd 1: %s\n", np->type.PipeNode.command->type.CommandNode.command);
+
+    if(in_fd != STDIN_FILENO) {
+      if(dup2(in_fd, STDIN_FILENO) != -1)
+        close(in_fd);
+      else error_exit("dup2");
+    }
+
+    evalCommand(np->type.PipeNode.command);
+    printf("last cmd: %s\n", np->type.PipeNode.command->type.CommandNode.command);
+    //error_exit("evalCommand last");
+  } else {
+    printf("last cmd next: %s\n", np->type.PipeNode.pipe->type.PipeNode.command->type.CommandNode.command);
+
+    printf("childpid = %d\n", childpid);
+  }A*/
 }

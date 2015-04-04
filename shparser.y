@@ -27,14 +27,14 @@ void displayPrompt(void);
 
 %%
 
-start : line				{fprintf(stdout, "start\n");}
+//start : line				{fprintf(stdout, "start\n");}
 
 line : line command '\n'                {fprintf(stdout, "line command\nWalking the tree...\n"); 
      					 evalNode($2); freeNode($2); displayPrompt();}
      | line commands '\n'               {fprintf(stdout, "line commands\nWalking the tree...\n"); 
 					 evalNode($2); freeNode($2); displayPrompt();}
-     | /*EMPTY*/
-     | line '\n'
+     | /*EMPTY*/			
+     | line '\n'		
      ;
 
 command : WORD                          {fprintf(stdout, "WORD (%s)\n", $1); $$ = new_command($1, NULL);}
@@ -44,7 +44,7 @@ command : WORD                          {fprintf(stdout, "WORD (%s)\n", $1); $$ 
 param : WORD                            {fprintf(stdout, "WORD (%s)\n", $1); $$ = new_param($1);}
       ;
 
-commands : commands '|' command         {fprintf(stdout, "commands | command\n"); $$ = new_pipe($3, $1);}
+commands : command '|' commands        {fprintf(stdout, "command | commands\n"); $$ = new_pipe($1, $3);}
          | command                      {fprintf(stdout, "command\n"); $$ = new_pipe($1, NULL);}
          ;
 
