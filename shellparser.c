@@ -167,6 +167,7 @@ int checkBuiltin (char* command) {
   for (i = 0; i < ncmds; i++) {
     char* testcmd = bitab[i].cmdname;
     if(strcmp(testcmd, command) == 0){
+      printf("Found builtin!");
       return i;
     }
   }
@@ -250,6 +251,7 @@ static void error_exit(const char *msg){
 // Here we will evaluate multiple commands that are 
 // piped together.
 void evalPipe(Node *np, int in_fd, pid_t pidToWait) {
+  printf("Evaluating pipe!");
   // Only wait if pidToWait is > 0, meaning it is a child
   if (pidToWait>0) {
     waitpid(pidToWait, (int*)0, 0);
