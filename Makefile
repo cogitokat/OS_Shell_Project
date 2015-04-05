@@ -1,9 +1,4 @@
-all: scanner shell
-
-scanner: scanner.l scanner.y
-	bison -y -d scanner.y
-	flex scanner.l
-	gcc -o scanner y.tab.c lex.yy.c
+all: shell
 
 shell: shparser.l shparser.y shellparser.c shellparser.h builtins.h builtins.c
 	bison -y -d shparser.y
@@ -13,5 +8,5 @@ shell: shparser.l shparser.y shellparser.c shellparser.h builtins.h builtins.c
 
 .PHONY: clean
 clean:
-	rm -f scanner shell
+	rm -f shell
 	rm -f *.o lex.yy.c y.tab.*

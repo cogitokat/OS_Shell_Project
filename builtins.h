@@ -3,6 +3,8 @@
 #define MAX_VAL_LENGTH 100
 #define MAX_ALIAS_LENGTH 100
 
+#define EXIT_SHELL 5
+
 typedef struct {
   char* cmdname;
   int (*cmdfunc)(int, char*[]);

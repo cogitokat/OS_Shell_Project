@@ -137,10 +137,10 @@ int evalNode(Node *np) {
     int ret = 0;
     switch (np->label) {
       case command_node:
-        createProcCommand(np);
+        ret = createProcCommand(np);
         break;
       case pipe_node:
-        evalPipe(np, STDIN_FILENO, 0);
+        ret = evalPipe(np, STDIN_FILENO, 0);
         break;
       default:
         fprintf(stderr, "Error: cannot print node of invalid type");
@@ -167,7 +167,7 @@ int checkBuiltin (char* command) {
   for (i = 0; i < ncmds; i++) {
     char* testcmd = bitab[i].cmdname;
     if(strcmp(testcmd, command) == 0){
-      printf("Found builtin!");
+      fprintf(stderr, "Found builtin!\n");
       return i;
     }
   }
@@ -196,11 +196,9 @@ int evalCommand(Node *np) {
       paramslist[i] = (curr->type.ParamsNode.first)->type.ParamNode.param;
       curr = curr->type.ParamsNode.second;
     }
-    if(bitab[binum].cmdfunc(numparams, paramslist) == -1){ // Call the builtin function.
+    ret = bitab[binum].cmdfunc(numparams, paramslist);
+    if (ret == -1) { // Call the builtin function.
       fprintf(stderr, "Error with builtin.\n"); // If the function returns -1, error.
-      ret = -1;
-    } else {
-      ret = 0;;
     }
   } else { // Handle regular commands.
     char *paramslist[numparams+2]; // Array of the params.
@@ -228,19 +226,21 @@ int evalCommand(Node *np) {
 
 // Create a new process for a single command
 // and pass to evalCommand() when in the child process.
-void createProcCommand(Node *np) 
+int createProcCommand(Node *np) 
 {
+  int ret = 0;
   int process;
   process = fork(); // Create a new process for the command.
   if (process > 0) { // If the process is > 0, we are still the parent,
     wait((int *) 0); // so wait. (Null pointer - return value not saved.)
   }
   else if (process == 0) { // If process == 0, we are in the child...
-    evalCommand(np);
+    ret = evalCommand(np);
   }
   else if (process == -1) { // If process == -1, then something went wrong.
     error_exit("Can't fork!");
   }
+  return ret;
 }
 
 static void error_exit(const char *msg){
@@ -250,7 +250,7 @@ static void error_exit(const char *msg){
 
 // Here we will evaluate multiple commands that are 
 // piped together.
-void evalPipe(Node *np, int in_fd, pid_t pidToWait) {
+int evalPipe(Node *np, int in_fd, pid_t pidToWait) {
   printf("Evaluating pipe!");
   // Only wait if pidToWait is > 0, meaning it is a child
   if (pidToWait>0) {
@@ -301,7 +301,32 @@ void evalPipe(Node *np, int in_fd, pid_t pidToWait) {
     // wait for the child to die before return
     waitpid(childpid, (int*)0, 0);
 
-    return;
+    return 0;
   }
 }
+
+void displayPrompt(void) {
+  if(isatty(0)) {
+    fprintf(stdout, "$: ");
+  }
+}
+
+void initialize(void) {
+  // Initialize variable arrays
+  int i;
+  for (i = 0; i < MAX_NUM_VARS; i++) {
+    variables[i][0] = '\0';
+    values[i][0] = '\0';
+    disabled[i] = 0;
+  }
+}
+
+int main(void) {
+  initialize();      
+  displayPrompt();
+  if (yyparse() == EXIT_SHELL)
+    exit(0);
+  return 0;
+}
+
 
