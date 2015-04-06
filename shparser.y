@@ -34,7 +34,7 @@ line : line command '\n'                {fprintf(stdout, "line command\n");
                				 RootNode = $2; YYACCEPT;}
      | line commands '\n'               {fprintf(stdout, "line commands\n"); 
            				 RootNode = $2; YYACCEPT;}
-     | /*EMPTY*/      
+     | /*EMPTY*/
      | line '\n'
      ;
 

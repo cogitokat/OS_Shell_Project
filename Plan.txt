@@ -1,0 +1,15 @@
+Plan
+
+- Piping
+- Built In Functions Complete
+	- Need to fill
+	- Alias
+	- Environmental Functions
+		- Brett!
+		- SetEnv, etc
+		- Some people making global env variable inside shell instead of changing path variable
+			- Benefit: entering in wrong stuff for path variable breaks everything
+- Grammar for rest of stuff
+	- Lexx and Yacc for quotes
+- Redirection
+	- 
