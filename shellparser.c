@@ -7,6 +7,8 @@
 #include "shellparser.h"
 #include "builtins.h"
 #include "y.tab.h"
+#include <stdlib.h>
+
 
 static void error_exit(const char *msg);
 
@@ -334,13 +336,18 @@ void displayPrompt(void) {
 }
 
 void initialize(void) {
-  // Initialize variable arrays
-  int i;
-  for (i = 0; i < MAX_NUM_VARS; i++) {
-    variables[i][0] = '\0';
-    values[i][0] = '\0';
-    disabled[i] = 0;
-  }
+
+  // Get PATH
+  char *a[2];
+  a[0]="PATH";
+  a[1]= getenv("PATH"); // TODO: Change this if needed
+  x_setenv(2, a);
+
+  // Get HOME
+  char *b[2];
+  b[0]="HOME";
+  b[1]= getenv("HOME"); // TODO: Change this if needed
+  x_setenv(2, b);
 }
 
 int getCommand(){
