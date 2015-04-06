@@ -8,7 +8,6 @@
 void yyerror(const char *msg);
 int yylineno;
 int yylex(void);
-void displayPrompt(void);
 
 %}
 
@@ -22,30 +21,34 @@ void displayPrompt(void);
 
 %token <num> NUMBER;
 %token <s> WORD;
-%token '\n'
+%token ERRTOK;
+%token '\n' '>' '<'
 %left '|'
 %type <np> command commands params param
 
 %%
 
-//start : line        {fprintf(stdout, "start\n");}
+start : line        			{fprintf(stdout, "start\n");}
 
-line : line command '\n'                {fprintf(stdout, "line command\nWalking the tree...\n"); 
-               evalNode($2); freeNode($2); displayPrompt();}
-     | line commands '\n'               {fprintf(stdout, "line commands\nWalking the tree...\n"); 
-           evalNode($2); freeNode($2); displayPrompt();}
+line : line command '\n'                {fprintf(stdout, "line command\n"); 
+               				 RootNode = $2; YYACCEPT;}
+     | line commands '\n'               {fprintf(stdout, "line commands\n"); 
+           				 RootNode = $2; YYACCEPT;}
      | /*EMPTY*/      
-     | line '\n'    
+     | line '\n'
      ;
 
 command : WORD                          {fprintf(stdout, "WORD (%s)\n", $1); $$ = new_command($1, NULL);}
+	| ERRTOK			{fprintf(stdout, "cmd ERRTOK!\n"); YYABORT;}
         | WORD params                   {fprintf(stdout, "WORD (%s) params\n", $1);$$ = new_command($1, $2);}
+	| ERRTOK params			{fprintf(stdout, "ERRTOK! params\n"); YYABORT;}
         ;
 
 param : WORD                            {fprintf(stdout, "WORD (%s)\n", $1); $$ = new_param($1);}
+      | ERRTOK				{fprintf(stdout, "ERRTOK!\n"); YYABORT;}
       ;
 
-commands : command '|' commands        {fprintf(stdout, "command | commands\n"); $$ = new_pipe($1, $3);}
+commands : command '|' commands         {fprintf(stdout, "command | commands\n"); $$ = new_pipe($1, $3);}
          | command                      {fprintf(stdout, "command\n"); $$ = new_pipe($1, NULL);}
          ;
 
@@ -57,28 +60,4 @@ params : param                          {fprintf(stdout, "param\n"); $$ = new_pa
 
 void yyerror(const char *msg) {
   fprintf(stderr, "line %d: %s\n", yylineno, msg);
-  exit(1);
-}
-
-void displayPrompt(void) {
-  if(isatty(0)) {
-    fprintf(stdout, "$: ");
-  }
-}
-
-void initialize(void) {
-  // Initialize variable arrays
-  int i;
-  for (i = 0; i < MAX_NUM_VARS; i++) {
-    variables[i][0] = '\0';
-    values[i][0] = '\0';
-    disabled[i] = 0;
-  }
-}
-
-int main(void) {
-  initialize();
-  displayPrompt();
-  yyparse();
-  return 0;
 }

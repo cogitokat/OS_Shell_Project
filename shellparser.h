@@ -10,6 +10,10 @@
  * ParamsNode: a node with two params
  */
 
+#define BYE 3
+#define OK 0
+#define ERRORS 1
+
 typedef struct Node{
   enum { command_node, pipe_node, param_node, params_node } label;
   union { struct { char*     command;
@@ -22,6 +26,8 @@ typedef struct Node{
       } type;
 } Node;
 
+Node *RootNode;
+
 Node *new_command(char* command, Node *childparams);
 Node *new_pipe(Node *command, Node *pipe);
 Node *new_param(char *param);
@@ -31,8 +37,11 @@ void freeNode(Node *np);
 
 int printNode(Node *np);
 int evalNode(Node *np);
-void evalPipe(Node *np, int in_fd, pid_t pidToWait);
+int evalPipe(Node *np, int in_fd, pid_t pidToWait);
 int evalCommand(Node *np);
-void createProcCommand(Node *np);
+int createProcCommand(Node *np);
 
+void displayPrompt(void);
+void initialize(void);
+int main(void);
 #endif

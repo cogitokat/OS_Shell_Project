@@ -45,7 +45,7 @@ int x_setenv(int nargs, char *args[]) {
   if(i == MAX_NUM_VARS)  // Now should be at empty slot if not at end
   {
     fprintf(stderr,"Oh noes at the end :(\n");
-    return 1;
+    return -1;
   }
 
   strncpy(variables[i], args[0], MAX_VAR_LENGTH);
@@ -185,7 +185,10 @@ int x_printalias(int nargs, char *args[]) {
 }
 
 int x_bye(int nargs, char *args[]) {
-  fprintf(stderr,"Executing bye...\n");
-  exit(EXIT_SUCCESS);
-  return 0;
+  int i;
+  fprintf(stdout,"Goodbye");
+  for (i=0; i<nargs; i++)
+    fprintf(stdout, " %s", args[i]);
+  fprintf(stdout, "\n");
+  exit(0);
 }
