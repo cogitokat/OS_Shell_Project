@@ -9,9 +9,7 @@ char * unquote(char *string);
 
 %%
 
-0                       		 {yylval.num = atoi(yytext); return NUMBER;}
-[1-9][0-9]*             		 {yylval.num = atoi(yytext); return NUMBER;}
-([A-Za-z]|[0-9]|-)([A-Za-z]|[0-9]|_|\.)* {yylval.s = strdup(yytext); return WORD;}
+([^\t \n\"\?\\\'\&><\|]|\\&|\\\"|\\>|\\<|\\\'|\\\|)+ {yylval.s = strdup(yytext); return WORD;}
 (\"(\\.|[^\\"])*\")|(\'(\\.|[^\\'])*\')  {char unquoted[yyleng+1];
                                           strncpy(unquoted, yytext, yyleng+1); 
 					  unquote(unquoted);

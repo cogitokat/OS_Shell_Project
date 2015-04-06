@@ -185,6 +185,10 @@ int x_printalias(int nargs, char *args[]) {
 }
 
 int x_bye(int nargs, char *args[]) {
-  fprintf(stderr,"Goodbye...\n");
-  return EXIT_SHELL;
+  int i;
+  fprintf(stdout,"Goodbye");
+  for (i=0; i<nargs; i++)
+    fprintf(stdout, " %s", args[i]);
+  fprintf(stdout, "\n");
+  exit(0);
 }

@@ -21,6 +21,7 @@ int yylex(void);
 
 %token <num> NUMBER;
 %token <s> WORD;
+%token ERRTOK;
 %token '\n' '>' '<'
 %left '|'
 %type <np> command commands params param
@@ -29,20 +30,22 @@ int yylex(void);
 
 start : line        			{fprintf(stdout, "start\n");}
 
-line : line command '\n'                {fprintf(stdout, "line command\nWalking the tree...\n"); 
-               				 int evalStat = evalNode($2); freeNode($2); 
-					 if(evalStat == EXIT_SHELL) return EXIT_SHELL; displayPrompt();}
-     | line commands '\n'               {fprintf(stdout, "line commands\nWalking the tree...\n"); 
-           				 evalNode($2); freeNode($2); displayPrompt();}
+line : line command '\n'                {fprintf(stdout, "line command\n"); 
+               				 RootNode = $2; YYACCEPT;}
+     | line commands '\n'               {fprintf(stdout, "line commands\n"); 
+           				 RootNode = $2; YYACCEPT;}
      | /*EMPTY*/      
-     | line '\n'    
+     | line '\n'
      ;
 
 command : WORD                          {fprintf(stdout, "WORD (%s)\n", $1); $$ = new_command($1, NULL);}
+	| ERRTOK			{fprintf(stdout, "cmd ERRTOK!\n"); YYABORT;}
         | WORD params                   {fprintf(stdout, "WORD (%s) params\n", $1);$$ = new_command($1, $2);}
+	| ERRTOK params			{fprintf(stdout, "ERRTOK! params\n"); YYABORT;}
         ;
 
 param : WORD                            {fprintf(stdout, "WORD (%s)\n", $1); $$ = new_param($1);}
+      | ERRTOK				{fprintf(stdout, "ERRTOK!\n"); YYABORT;}
       ;
 
 commands : command '|' commands         {fprintf(stdout, "command | commands\n"); $$ = new_pipe($1, $3);}
@@ -57,5 +60,4 @@ params : param                          {fprintf(stdout, "param\n"); $$ = new_pa
 
 void yyerror(const char *msg) {
   fprintf(stderr, "line %d: %s\n", yylineno, msg);
-  return;
 }

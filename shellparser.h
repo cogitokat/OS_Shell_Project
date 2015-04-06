@@ -10,6 +10,10 @@
  * ParamsNode: a node with two params
  */
 
+#define BYE 3
+#define OK 0
+#define ERRORS 1
+
 typedef struct Node{
   enum { command_node, pipe_node, param_node, params_node } label;
   union { struct { char*     command;
@@ -21,6 +25,8 @@ typedef struct Node{
                    struct Node*     second; }       ParamsNode;
       } type;
 } Node;
+
+Node *RootNode;
 
 Node *new_command(char* command, Node *childparams);
 Node *new_pipe(Node *command, Node *pipe);
