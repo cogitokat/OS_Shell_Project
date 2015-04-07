@@ -251,7 +251,7 @@ int evalRedir(Node *np) {
         }
         // Do append
       } else if (np->type.RedirNode.append == 1) {
-        if((outfd = open(np->type.RedirNode.outfile, O_APPEND|O_CREAT, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH)) == -1) {
+        if((outfd = open(np->type.RedirNode.outfile, O_WRONLY|O_CREAT|O_APPEND, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH)) == -1) {
           fprintf(stderr, "Can't open file: %s\n", np->type.RedirNode.outfile);
           ret = -1;
         }
