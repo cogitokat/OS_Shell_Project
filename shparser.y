@@ -30,15 +30,11 @@ int yylex(void);
 
 start : line                            {fprintf(stdout, "start\n");}
 
-line : line command '\n'                {fprintf(stdout, "line command\n"); 
-                                         RootNode = $2; YYACCEPT;}
-     | line commands '\n'               {fprintf(stdout, "line commands\n"); 
+line : line commands '\n'               {fprintf(stdout, "line commands\n"); 
                                          RootNode = $2; YYACCEPT;}
      | line redir '\n'                  {fprintf(stdout, "line redir\n");
                                          RootNode = $2; YYACCEPT;}
-     | line command '&' '\n'            {fprintf(stdout, "line command\n"); 
-                                         RootNode = $2; runBG = 1; YYACCEPT;}
-     | line commands '&' '\n'           {fprintf(stdout, "line commands\n"); 
+     | line commands '&' '\n'            {fprintf(stdout, "line command\n"); 
                                          RootNode = $2; runBG = 1; YYACCEPT;}
      | line redir '&' '\n'              {fprintf(stdout, "line redir\n"); 
                                          RootNode = $2; runBG = 1; YYACCEPT;}
@@ -89,8 +85,6 @@ redir : commandline '<' WORD                                     {fprintf(stdout
       ;
 
 commandline : commands                                          {fprintf(stdout, "commandline\n"); 
-                                                                $$ = $1;}
-            | command                                           {fprintf(stdout, "commandline\n"); 
                                                                 $$ = $1;}
             ;
 
