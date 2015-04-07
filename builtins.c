@@ -2,6 +2,7 @@
 #include <string.h>
 #include "builtins.h"
 #include <stdlib.h>
+#include <unistd.h>
 
 const bient bitab[] = {
   {"cd", x_chdir},
@@ -17,7 +18,28 @@ const bient bitab[] = {
 int ncmds = sizeof(bitab) / sizeof(bient);
 
 int x_chdir(int nargs, char *args[]) {
-  fprintf(stderr,"Executing cd...\n");
+  // fprintf(stderr,"Executing cd...\n");
+  int n = nargs;
+  fprintf(stderr, "Size is: %i\n",nargs);
+  char * dest;
+  dest = args[0];
+  if(nargs < 1)
+  {
+    fprintf(stderr, "No arguments supplied, ET phone home ~\n");
+    char *b[2];
+    b[0]="HOME";
+    b[1]= getenv("HOME"); 
+    dest = b[1];
+  }
+
+  if(chdir(dest) == -1)
+  {
+    fprintf(stderr, "Could not change!\n");
+    return 1;
+  }
+
+  char * cwd = getcwd(0,0);
+  fprintf(stderr, "Changed directory, now in %s\n",cwd);
   return 0;
 }
 
