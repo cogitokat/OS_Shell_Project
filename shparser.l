@@ -20,6 +20,7 @@ char * unquote(char *string);
 (&1)                                     {return STDOUT;}
 [|><\n]                 		             {return *yytext;}
 [ \t\r]+                		             {;}
+<<EOF>>                           {return END_OF_FILE;}
 
 .                       		             {yyerror("Invalid character!");}
 

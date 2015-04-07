@@ -486,6 +486,10 @@ void initialize(void) {
   b[0]="HOME";
   b[1]= getenv("HOME"); // TODO: Change this if needed
   x_setenv(2, b);
+  
+  // Global flags
+  runBG = 0;
+  doneParsing = 0;
 }
 
 int getCommand(){
@@ -511,6 +515,10 @@ int main(void) {
       case OK:
         if(runBG == 1) {
           fprintf(stderr, "Run this in BG!\n");
+        }
+        if(doneParsing ==1) {
+          fprintf(stderr, "So long!\n");
+          exit(0);
         }
         evalNode(RootNode); 
         freeNode(RootNode);

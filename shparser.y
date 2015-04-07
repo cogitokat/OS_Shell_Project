@@ -21,7 +21,7 @@ int yylex(void);
 
 %token <num> NUMBER;
 %token <s> WORD;
-%token ERRTOK STDOUT RE_STDERR;
+%token ERRTOK STDOUT RE_STDERR END_OF_FILE;
 %token '\n' '>' '<' '&'
 %left '|'
 %type <np> command commands redir params param commandline
@@ -40,6 +40,8 @@ line : line commands '\n'               {fprintf(stdout, "line commands\n");
                                          RootNode = $2; runBG = 1; YYACCEPT;}
      | /*EMPTY*/      
      | line '\n'
+     | END_OF_FILE               {fprintf(stdout, "Reached EOF, exit\n"); 
+                                             doneParsing = 1; YYACCEPT;}
      ;
 
 command : WORD                          {fprintf(stdout, "WORD (%s)\n", $1); $$ = new_command($1, NULL);}
