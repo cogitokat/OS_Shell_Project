@@ -53,4 +53,8 @@ int createProcCommand(Node *np);
 void displayPrompt(void);
 void initialize(void);
 int main(void);
+
+
+extern char* x_getvar(int, char *[]);
+extern char* x_getal(int, char *[]);
 #endif

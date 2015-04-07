@@ -141,7 +141,7 @@ int x_alias(int nargs, char *args[]) {
     {
       fprintf(stderr,"Equal: %s and %s\n",alias_names[i], args[0]);
       strncpy(alias_vals[i], args[1], MAX_VAL_LENGTH); // Overwrite value
-      disabled[i] = 0; // In case it was previously disabled
+      alias_disabled[i] = 0; // In case it was previously disabled
       fprintf(stderr,"OVERWROTE %s = %s at spot %i\n",args[0],alias_names[i], i); // Not at end if here
       return 0;
     }
@@ -196,13 +196,18 @@ int x_printalias(int nargs, char *args[]) {
   int i = 0;
   for(i = 0; i< 100; i++)
   {
-    if(alias_names[i][0]!='\0' && !disabled[i])
+    if(alias_names[i][0]!='\0' && !alias_disabled[i])
     {
       char * var = alias_names[i];
       char * val = alias_vals[i];
       fprintf(stderr,"%s = %s\n", var, val );
     }
   }
+  char a[100] = "HOME";
+  char * hello;
+  hello = getal(a);
+  //char * hello ="hehehe";
+  fprintf(stderr,"Got alias for brett --> %s",hello);
   return 0;
 }
 
