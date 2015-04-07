@@ -15,11 +15,17 @@
 #define ERRORS 1
 
 typedef struct Node{
-  enum { command_node, pipe_node, param_node, params_node } label;
+  enum { command_node, pipe_node, redir_node, param_node, params_node } label;
   union { struct { char*     command;
                    struct Node*     childparams; }  CommandNode;
           struct { struct Node*     command;
                    struct Node*     pipe; }         PipeNode;
+		    struct { char * infile;
+              char* outfile;
+              int append;
+              char* stderrfile;
+              int stderr_to_out;
+			        struct Node* commandline; }   RedirNode;
           struct { char*     param; }        ParamNode;
           struct { struct Node*     first;
                    struct Node*     second; }       ParamsNode;
@@ -27,11 +33,14 @@ typedef struct Node{
 } Node;
 
 Node *RootNode;
+int runBG;
+int doneParsing;
 
 Node *new_command(char* command, Node *childparams);
 Node *new_pipe(Node *command, Node *pipe);
 Node *new_param(char *param);
 Node *new_params(Node *first, Node *second);
+Node *new_redir(Node *commandline, char* infile, char* outfile, int append, char* stderrfile, int stderr_to_out);
 
 void freeNode(Node *np);
 

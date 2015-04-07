@@ -4,59 +4,40 @@
 #include "shellparser.h"
 #include "y.tab.h"
 
+#define MAX_STR_SIZE 200
+
 char * unquote(char *string);
 %}
 
+%x DBLQUOTES SNGLQUOTES
+
 %%
+                                      char string_buf[MAX_STR_SIZE];
+                                      char *string_buf_ptr;
+
+\"                                      {string_buf_ptr = string_buf; BEGIN(DBLQUOTES);}
+<DBLQUOTES>[^\\"\n]*      { char *yptr = yytext;
+                                          while ( *yptr )
+                                            *string_buf_ptr++ = *yptr++; }
+<DBLQUOTES>\\n             { *string_buf_ptr++ = '\n'; }
+<DBLQUOTES>\\t              { *string_buf_ptr++ = '\t'; }
+<DBLQUOTES>\\[\\"]          { *string_buf_ptr++ = yytext[1];}
+<DBLQUOTES>\"               { yylval.s = strdup(string_buf); BEGIN(INITIAL); 
+                                           *string_buf_ptr = '\0'; return WORD;}
 
 ([^\t \n\"\?\\\'\&><\|]|\\&|\\\"|\\>|\\<|\\\'|\\\|)+ {yylval.s = strdup(yytext); return WORD;}
-(\"(\\.|[^\\"])*\")|(\'(\\.|[^\\'])*\')  {char unquoted[yyleng+1];
-                                          strncpy(unquoted, yytext, yyleng+1); 
-					  unquote(unquoted);
-					  yylval.s = strdup(unquoted);
-					  return WORD;}
-[|><\n]                 		 {return *yytext;}
-[ \t\r]+                		 {;}
+\&                                       {return *yytext;}
+2>					                            {return RE_STDERR;}
+\&1                                     {return STDOUT;}
+[|><\n]                 		            {return *yytext;}
+[ \t\r]+                		              {;}
+<<EOF>>                           {return END_OF_FILE;}
 
-.                       		 {yyerror("Invalid character!");}
+.                       		             {yyerror("Invalid character!"); return ERRTOK;}
 
 %%
 
 int yywrap(void)
 {
   return 1;
-}
-
-char * unquote(char *string) {
-  /* We can strip quotes in the lexer,
-   * making parsing easier because then
-   * it can be parsed as a normal word.
-   */
-  char *strp = string;
-  int stringlen = strlen(strp);
-  int r = 0; // for reading the string
-  int w = 0; // for writing back to the string
-  if (strp[0] == '"') { // if the string is double quoted
-    for (r=0; r<stringlen; r++) { // loop over the string
-      if (strp[r] != '"' && strp[r] != '\\') { // regular char
-        strp[w++] = strp[r]; // keep the char
-      } else if (strp[r+1] == '"' && strp[r] == '\\') { // escaped '"'
-	strp[w++] = '"';
-      } else if (strp[r+1] != '"' && strp[r] == '\\') { // regular '\'
-	strp[w++] = '\\';
-      }
-    }
-  } else if (strp[0] == '\'') { // if the string is single quoted
-  for (r=0; r<stringlen; r++) { // same as for double quote
-      if (strp[r] != '\'' && strp[r] != '\\') {
-        strp[w++] = strp[r];
-      } else if (strp[r+1] == '\'' && strp[r] == '\\') {
-        strp[w++] = '\'';
-      } else if (strp[r+1] != '\'' && strp[r] == '\\') {
-        strp[w++] = '\\';
-      }   
-    }
-  }   
-  strp[w] = '\0';
-  return (string);
 }
