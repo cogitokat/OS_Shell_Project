@@ -12,13 +12,16 @@ char * unquote(char *string);
 ([^\t \n\"\?\\\'\&><\|]|\\&|\\\"|\\>|\\<|\\\'|\\\|)+ {yylval.s = strdup(yytext); return WORD;}
 (\"(\\.|[^\\"])*\")|(\'(\\.|[^\\'])*\')  {char unquoted[yyleng+1];
                                           strncpy(unquoted, yytext, yyleng+1); 
-					  unquote(unquoted);
-					  yylval.s = strdup(unquoted);
-					  return WORD;}
-[|><\n]                 		 {return *yytext;}
-[ \t\r]+                		 {;}
+                                          unquote(unquoted);
+                                          yylval.s = strdup(unquoted);
+                                          return WORD;}
+(&)                                      {return *yytext;}
+(2>)					                           {return RE_STDERR;}
+(&1)                                     {return STDOUT;}
+[|><\n]                 		             {return *yytext;}
+[ \t\r]+                		             {;}
 
-.                       		 {yyerror("Invalid character!");}
+.                       		             {yyerror("Invalid character!");}
 
 %%
 

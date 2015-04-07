@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include "shellparser.h"
@@ -46,6 +47,18 @@ Node *new_params(Node *first, Node *second) {
   return newnode; 
 }
 
+Node *new_redir(Node *commandline, char* infile, char* outfile, int append, char* stderrfile, int stderr_to_out){
+	Node* newnode = (Node*) malloc(sizeof(Node));
+	newnode->label = redir_node;
+  newnode->type.RedirNode.commandline = commandline;
+	newnode->type.RedirNode.infile = infile;
+	newnode->type.RedirNode.outfile = outfile;
+	newnode->type.RedirNode.append = append;
+	newnode->type.RedirNode.stderrfile = stderrfile;
+	newnode->type.RedirNode.stderr_to_out = stderr_to_out;
+	return newnode;
+}
+
 // Recursive function to free nodes...
 void freeNode(Node *np){
   if (np == NULL) { // Return if there are no nodes left.
@@ -69,6 +82,12 @@ void freeNode(Node *np){
         break;
       case param_node:
         free(np->type.ParamNode.param);
+        break;
+      case redir_node:
+        freeNode(np->type.RedirNode.commandline);
+        free(np->type.RedirNode.infile);
+        free(np->type.RedirNode.outfile);
+        free(np->type.RedirNode.stderrfile);
         break;
       default:
         error_exit("Error in freeNode(): Invalid Node Type.");
@@ -121,7 +140,7 @@ int printNode(Node *np) {
         }
         break;
       default:
-        fprintf(stderr, "Error: cannot print node of invalid type");
+        fprintf(stderr, "Error: cannot print node of invalid type\n");
         ret = -1;
         break;
     }
@@ -148,13 +167,132 @@ int evalNode(Node *np) {
       case pipe_node:
         ret = evalPipe(np, STDIN_FILENO, 0);
         break;
+      case redir_node:
+        ret = evalRedir(np);
+        break;
       default:
-        fprintf(stderr, "Error: cannot print node of invalid type");
+        fprintf(stderr, "Error: cannot evaluate node of invalid type\n");
         ret = -1;
         break;
     }
     return ret;
   }
+}
+
+int evalRedir(Node *np) {
+  fprintf(stderr, "Successful redirection!\n");
+/*  switch (np->type.RedirNode.commandline->label) {
+    case command_node:
+      fprintf(stderr, "Command: %s\n", np->type.RedirNode.commandline->type.CommandNode.command);
+      break;
+    case pipe_node:
+      fprintf(stderr, "First command: %s\n", np->type.RedirNode.commandline->\
+                                                 type.PipeNode.command->\
+                                                 type.CommandNode.command);
+      break;
+    default:
+      fprintf(stderr, "Redirect node has invalid pointer.\n");
+      break;
+  }
+  if (np->type.RedirNode.infile != NULL)
+    fprintf(stderr, "Infile: %s\n", np->type.RedirNode.infile);
+  if (np->type.RedirNode.outfile != NULL)
+    fprintf(stderr, "Outfile: %s\n", np->type.RedirNode.outfile);
+  if (np->type.RedirNode.append >= 0)
+    fprintf(stderr, "Append: %d\n", np->type.RedirNode.append);
+  if (np->type.RedirNode.stderrfile != NULL)
+    fprintf(stderr, "Stderrfile: %s\n", np->type.RedirNode.stderrfile);
+  if (np->type.RedirNode.stderr_to_out >= 0)
+    fprintf(stderr, "Stderr to out: %d\n", np->type.RedirNode.stderr_to_out);*/
+  
+  int ret;
+  int infd;
+  int outfd;
+  int errfd;
+
+      // If it exists, Get input from infile, connect the fd[infile in r] to STDIN 
+      // forked process
+      // If it exists, Get outfile, connect the STDOUT to fd[outfile in w/a]
+      // If it exists, Get stderrfile, connect the STDERR to fd[stderrfile in w]
+      //    Else if stderr_to_out is 1, connect STDERR to STDOUT
+      // evalCommand OR evalPipe
+      // 
+  pid_t childpid;
+  if ((childpid = fork()) == -1) {
+    fprintf(stderr, "Failed to fork for redir.\n");
+    return -1;
+  }
+  
+  if (childpid == 0) { // ** Child process
+    // ** STDIN from file
+    if(np->type.RedirNode.infile != NULL) {
+      
+      if((infd = open(np->type.RedirNode.infile, O_RDONLY)) == -1) {
+        fprintf(stderr, "Can't open file: %s\n", np->type.RedirNode.infile);
+        ret = -1;
+      }
+      // Redirect
+      if (dup2(infd, STDIN_FILENO) == -1) {
+        fprintf(stderr, "Failed to redirect stdin\n");
+        ret = -1;
+      }
+    }
+
+
+    // ** STDOUT to file
+    if(np->type.RedirNode.outfile != NULL) {
+      // Don't append
+      if (np->type.RedirNode.append == 0) {
+        if((outfd = open(np->type.RedirNode.outfile, O_WRONLY|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH)) == -1) {
+          fprintf(stderr, "Can't open file: %s\n", np->type.RedirNode.outfile);
+          ret = -1;
+        }
+        // Do append
+      } else if (np->type.RedirNode.append == 1) {
+        if((outfd = open(np->type.RedirNode.outfile, O_APPEND|O_CREAT, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH)) == -1) {
+          fprintf(stderr, "Can't open file: %s\n", np->type.RedirNode.outfile);
+          ret = -1;
+        }
+      // Append is unknown
+      } else {
+        fprintf(stderr, "Do I append or not? ): \n");
+        ret = -1;
+      }
+      // Redirect
+      if (dup2(outfd, STDOUT_FILENO) == -1) {
+        fprintf(stderr, "Failed to redirect stdout\n");
+        ret = -1;
+      }
+    }
+
+
+    // ** STDERR to file
+    if ((np->type.RedirNode.stderrfile != NULL) && (np->type.RedirNode.stderr_to_out == 0)) {
+      if((errfd = open(np->type.RedirNode.stderrfile, O_WRONLY|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH)) == -1) {
+        fprintf(stderr, "Can't open file: %s\n", np->type.RedirNode.stderrfile);
+        ret = -1;
+      }
+      // Redirect
+      if (dup2(errfd, STDERR_FILENO) == -1) {
+        fprintf(stderr, "Failed to redirect stderr\n");
+        ret = -1;
+      }
+    // ** STDERR to STDOUT
+    } else if ((np->type.RedirNode.stderrfile == NULL) && (np->type.RedirNode.stderr_to_out == 1)) {
+      // Redirect
+      if (dup2(STDOUT_FILENO, STDERR_FILENO) == -1) {
+        fprintf(stderr, "Failed to redirect stderr to stdout\n");
+        ret = -1;
+      }
+    }
+    ret = evalNode(np->type.RedirNode.commandline);
+    exit(0);
+  }
+  // ** Parent process
+  int waitstatus;
+  waitstatus = waitpid(childpid, (int*)0, 0);
+  fprintf(stderr, "Waiting: %d\n", waitstatus);
+  return ret;
 }
 
 // Recursively count the number of params. The params node is a
@@ -364,6 +502,9 @@ int main(void) {
           fprintf(stderr, "clear lex: %s\n", yylval.s);
         break;
       case OK:
+        if(runBG == 1) {
+          fprintf(stderr, "Run this in BG!\n");
+        }
         evalNode(RootNode); 
         freeNode(RootNode);
         fprintf(stderr, "Done evaling..\n");
