@@ -527,19 +527,19 @@ int main(void) {
   }
 }
 
-const char * getal(char *args[])
+const char * getal(int nargs, char *args[])
 {
   fprintf(stderr,"\nRetrieving alias...\n");
   int i = 0;
-  fprintf(stderr, "check1\n" );
+  // fprintf(stderr, "check1\n" );
 
   fprintf(stderr,"Got args[0]: %s\n", args[0]);
   
-  while (alias_names[i][0]!='\0' && i < MAX_ALIAS_LENGTH ) // Find empty slot in variables array
+  while (alias_names[i][0]!='\0' && i <= MAX_ALIAS_LENGTH ) // Find empty slot in variables array
   {
-    fprintf(stderr, "check2\n" );
+    // fprintf(stderr, "check2\n" );
 
-    fprintf(stderr,"I is currently %i and current varible in slot is %s\n",i,alias_names[i]);
+    // fprintf(stderr,"I is currently %i and current varible in slot is %s\n",i,alias_names[i]);
     //strncpy(hello, variables[i], MAX_VAR_LENGTH);  // Variable at current slot
     if(strcmp(alias_names[i], args[0]) == 0) // If we have an entry, need to overwrite it
     {
@@ -547,35 +547,35 @@ const char * getal(char *args[])
       fprintf(stderr,"Found  alias %s = %s at spot %i\n",args[0],alias_vals[i], i); // Not at end if here
       return alias_vals[i];
     }
-    fprintf(stderr, "made it here\n" );
+    //fprintf(stderr, "made it here\n" );
     i++;
   }
-  fprintf(stderr, "check3\n" );
+  //fprintf(stderr, "check3\n" );
 
   if(i == MAX_NUM_VARS)  // Now should be at empty slot if not at end
   {
     fprintf(stderr,"Oh noes at the end :(\n");
     return '\0';
   }
-    fprintf(stderr, "check4\n" );
-
+  // fprintf(stderr, "check4\n" );
   return '\0';
 }
 
-char* getvar(int nargs, char *args[])
+const char * getvar(int nargs, char *args[])
 {
   fprintf(stderr,"\nRetrieving var...\n");
   int i = 0;
   fprintf(stderr,"Got args[0]: %s\n", args[0]);
   
-  while (variables[i][0]!='\0' && i < MAX_NUM_VARS ) // Find empty slot in variables array
+  while (variables[i][0]!='\0' && i <= MAX_NUM_VARS ) // Find empty slot in variables array
   {
+    fprintf(stderr, "Check %i\n",i );
     // fprintf(stderr,"I is currently %i and current varible in slot is %s\n",i,alias_names[i]);
     //strncpy(hello, variables[i], MAX_VAR_LENGTH);  // Variable at current slot
-    if(strcmp(variables[i], args[0]) == 0 && !disabled[i]) // If we have an entry, need to overwrite it
+    if(strcmp(variables[i], args[0]) == 0) // If we have an entry, need to overwrite it
     {
-      // fprintf(stderr,"Found alias: %s and %s\n",alias_names[i], args[0]);
-      fprintf(stderr,"Found  variable %s = %s at spot %i\n",args[0],values[i], i); // Not at end if here
+      fprintf(stderr,"Found alias: %s and %s\n",variables[i], values[i]);
+      // fprintf(stderr,"Found  variable %s = %s at spot %i\n",args[0],values[i], i); // Not at end if here
       return values[i];
     }
     i++;

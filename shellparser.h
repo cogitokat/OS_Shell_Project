@@ -55,6 +55,6 @@ void initialize(void);
 int main(void);
 
 
-extern char* x_getvar(int, char *[]);
-extern char* x_getal(int, char *[]);
+const char* x_getvar(int, char *[]);
+const char* x_getal(int, char *[]);
 #endif

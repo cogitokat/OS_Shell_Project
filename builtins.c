@@ -118,6 +118,14 @@ int x_printenv(int nargs, char *args[]) {
       fprintf(stderr,"%s = %s\n", var, val );
     }
   }
+
+  char * hello[] = {"PATH"}; // this list argument for getal function
+                              //  TODO: replace to take in from other function
+  const  char *strGetal; 
+  strGetal = getvar(1,hello);
+  //char * hello ="hehehe";
+    fprintf(stderr,"Got env variable for home --> %s",strGetal);
+//    fprintf(stderr, "Could not find variable\n");
   return 0;
 }
 
@@ -203,11 +211,16 @@ int x_printalias(int nargs, char *args[]) {
       fprintf(stderr,"%s = %s\n", var, val );
     }
   }
-  char a[100] = "HOME";
-  char * hello;
-  hello = getal(a);
+
+  char * hello[] = {"brett"}; // this list argument for getal function
+                              //  TODO: replace to take in from other function
+  const  char *strGetal; 
+  strGetal = getal(1,hello);
   //char * hello ="hehehe";
-  fprintf(stderr,"Got alias for brett --> %s",hello);
+  if(strGetal)
+    fprintf(stderr,"Got alias for brett --> %s",strGetal);
+  else
+    fprintf(stderr, "Could not find alias\n");
   return 0;
 }
 

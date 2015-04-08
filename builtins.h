@@ -27,12 +27,9 @@ extern int x_setenv(int, char *[]);
 extern int x_unsetenv(int, char *[]);
 extern int x_printenv(int, char *[]);
 
-extern char* x_getvar(int, char *[]);
 
 extern int x_alias(int, char *[]);
 extern int x_unalias(int, char *[]);
 extern int x_printalias(int, char *[]);
-
-extern char* x_getal(int, char *[]);
 
 extern int x_bye(int, char *[]);
