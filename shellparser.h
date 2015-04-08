@@ -35,6 +35,7 @@ typedef struct Node{
 Node *RootNode;
 int runBG;
 int doneParsing;
+int firstWord;
 
 Node *new_command(char* command, Node *childparams);
 Node *new_pipe(Node *command, Node *pipe);

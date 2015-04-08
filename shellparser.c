@@ -490,6 +490,7 @@ void initialize(void) {
   // Global flags
   runBG = 0;
   doneParsing = 0;
+  firstWord = 1;
 }
 
 int getCommand(){
@@ -506,6 +507,7 @@ int main(void) {
   initialize();
   while(1) {
     displayPrompt();
+    firstWord = 1;
     switch (getCommand()) {
       case ERRORS:
         fprintf(stderr, "Recover from errors...\n");
@@ -520,7 +522,10 @@ int main(void) {
           fprintf(stderr, "So long!\n");
           exit(0);
         }
-        evalNode(RootNode); 
+        evalNode(RootNode);
+        if(printNode(RootNode) == -1){
+          fprintf(stderr, "Failed to print node\n");
+        }
         freeNode(RootNode);
         fprintf(stderr, "Done evaling..\n");
     }

@@ -29,26 +29,22 @@ int yylex(void);
 %%
 
 start : line                            {fprintf(stdout, "start\n");}
+      | line END_OF_FILE                {fprintf(stdout, "EOF start\n"); 
+                                         doneParsing = 1; YYACCEPT;}
 
 line : line commands '\n'               {fprintf(stdout, "line commands\n"); 
                                          RootNode = $2; YYACCEPT;}
      | line redir '\n'                  {fprintf(stdout, "line redir\n");
                                          RootNode = $2; YYACCEPT;}
-     | line commands '&' '\n'            {fprintf(stdout, "line command\n"); 
+     | line commands '&' '\n'           {fprintf(stdout, "line command\n"); 
                                          RootNode = $2; runBG = 1; YYACCEPT;}
      | line redir '&' '\n'              {fprintf(stdout, "line redir\n"); 
                                          RootNode = $2; runBG = 1; YYACCEPT;}
      | /*EMPTY*/      
      | line '\n'
-     | END_OF_FILE               {fprintf(stdout, "Reached EOF, exit\n"); 
-                                             doneParsing = 1; YYACCEPT;}
+     | END_OF_FILE                      {fprintf(stdout, "Reached EOF, exit\n"); 
+                                         doneParsing = 1; YYACCEPT;}
      ;
-
-command : WORD                          {fprintf(stdout, "WORD (%s)\n", $1); $$ = new_command($1, NULL);}
-        | ERRTOK                        {fprintf(stdout, "cmd ERRTOK!\n"); YYABORT;}
-        | WORD params                   {fprintf(stdout, "WORD (%s) params\n", $1);$$ = new_command($1, $2);}
-        | ERRTOK params                 {fprintf(stdout, "ERRTOK! params\n"); YYABORT;}
-        ;
 
 redir : commandline '<' WORD                                     {fprintf(stdout, "< WORD\n"); 
                                                                 $$ = new_redir($1, $3, NULL, 0, NULL, 0);}
@@ -90,17 +86,23 @@ commandline : commands                                          {fprintf(stdout,
                                                                 $$ = $1;}
             ;
 
-param : WORD                            {fprintf(stdout, "WORD (%s)\n", $1); $$ = new_param($1);}
-      | ERRTOK                          {fprintf(stdout, "ERRTOK!\n"); YYABORT;}
-      ;
-
 commands : command '|' commands         {fprintf(stdout, "command | commands\n"); $$ = new_pipe($1, $3);}
          | command                      {fprintf(stdout, "command\n"); $$ = new_pipe($1, NULL);}
          ;
 
+command : WORD                          {fprintf(stdout, "WORD (%s)\n", $1); $$ = new_command($1, NULL);}
+        | ERRTOK                        {fprintf(stdout, "cmd ERRTOK!\n"); YYABORT;}
+        | WORD params                   {fprintf(stdout, "WORD (%s) params\n", $1);$$ = new_command($1, $2);}
+        | ERRTOK params                 {fprintf(stdout, "ERRTOK! params\n"); YYABORT;}
+        ;         
+
 params : param                          {fprintf(stdout, "param\n"); $$ = new_params($1, NULL);}
        | param params                   {fprintf(stdout, "param params\n"); $$ = new_params($1, $2);}
        ;
+       
+param : WORD                            {fprintf(stdout, "WORD (%s)\n", $1); $$ = new_param($1);}
+      | ERRTOK                          {fprintf(stdout, "ERRTOK!\n"); YYABORT;}
+      ;
 
 %%
 
