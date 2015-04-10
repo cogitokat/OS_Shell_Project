@@ -5,9 +5,10 @@
 #include "builtins.h"
 #include "shellparser.h"
 
-void yyerror(const char *msg);
-int yylineno;
-int yylex(void);
+extern void yyerror(const char *msg);
+extern int yylineno;
+extern char * yytext;
+extern int yylex(void);
 
 %}
 
@@ -19,31 +20,27 @@ int yylex(void);
   Node *np;
 };
 
-%token <num> NUMBER;
-%token <s> WORD;
-%token ERRTOK STDOUT RE_STDERR END_OF_FILE;
+%token <num> NUMBER
+%token <s> WORD
+%token ERRTOK STDOUT RE_STDERR
 %token '\n' '>' '<' '&'
 %left '|'
 %type <np> command commands redir params param commandline
 
 %%
 
-start : line                            {fprintf(stdout, "start\n");}
-      | line END_OF_FILE                {fprintf(stdout, "EOF start\n"); 
-                                         doneParsing = 1; YYACCEPT;}
+start : line                            {fprintf(stdout, "start\n"); doneParsing = 1; }
 
 line : line commands '\n'               {fprintf(stdout, "line commands\n"); 
-                                         RootNode = $2; YYACCEPT;}
+                                         RootNode = $2; runBG = 0; return 0;}
      | line redir '\n'                  {fprintf(stdout, "line redir\n");
-                                         RootNode = $2; YYACCEPT;}
+                                         RootNode = $2; runBG = 0; return 0;}
      | line commands '&' '\n'           {fprintf(stdout, "line command\n"); 
-                                         RootNode = $2; runBG = 1; YYACCEPT;}
+                                         RootNode = $2; runBG = 1; return 0;}
      | line redir '&' '\n'              {fprintf(stdout, "line redir\n"); 
-                                         RootNode = $2; runBG = 1; YYACCEPT;}
+                                         RootNode = $2; runBG = 1; return 0;}
      | /*EMPTY*/      
      | line '\n'
-     | END_OF_FILE                      {fprintf(stdout, "Reached EOF, exit\n"); 
-                                         doneParsing = 1; YYACCEPT;}
      ;
 
 redir : commandline '<' WORD                                     {fprintf(stdout, "< WORD\n"); 
@@ -83,17 +80,15 @@ redir : commandline '<' WORD                                     {fprintf(stdout
       ;
 
 commandline : commands                                          {fprintf(stdout, "commandline\n"); 
-                                                                $$ = $1;}
+                                                                                 $$ = $1;}
             ;
 
 commands : command '|' commands         {fprintf(stdout, "command | commands\n"); $$ = new_pipe($1, $3);}
-         | command                      {fprintf(stdout, "command\n"); $$ = new_pipe($1, NULL);}
+         | command                                     {fprintf(stdout, "command\n"); $$ = new_pipe($1, NULL);}
          ;
 
 command : WORD                          {fprintf(stdout, "WORD (%s)\n", $1); $$ = new_command($1, NULL);}
-        | ERRTOK                        {fprintf(stdout, "cmd ERRTOK!\n"); YYABORT;}
         | WORD params                   {fprintf(stdout, "WORD (%s) params\n", $1);$$ = new_command($1, $2);}
-        | ERRTOK params                 {fprintf(stdout, "ERRTOK! params\n"); YYABORT;}
         ;         
 
 params : param                          {fprintf(stdout, "param\n"); $$ = new_params($1, NULL);}
@@ -101,11 +96,10 @@ params : param                          {fprintf(stdout, "param\n"); $$ = new_pa
        ;
        
 param : WORD                            {fprintf(stdout, "WORD (%s)\n", $1); $$ = new_param($1);}
-      | ERRTOK                          {fprintf(stdout, "ERRTOK!\n"); YYABORT;}
       ;
-
+      
 %%
 
 void yyerror(const char *msg) {
-  fprintf(stderr, "line %d: %s\n", yylineno, msg);
+  fprintf(stderr, "line %d: %s at %s\n", yylineno, msg, yytext);
 }

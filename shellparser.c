@@ -8,8 +8,6 @@
 #include "shellparser.h"
 #include "builtins.h"
 #include "y.tab.h"
-#include <stdlib.h>
-
 
 static void error_exit(const char *msg);
 
@@ -161,13 +159,17 @@ int evalNode(Node *np) {
     switch (np->label) {
       case command_node:
         if ((binum = checkBuiltin(np)) >= 0) {
-          ret = evalBuiltin(np, binum);
+          ret = evalBuiltin(np, binum, 0);
         } else {
           ret = createProcCommand(np);
         }
         break;
       case pipe_node:
-        ret = evalPipe(np, STDIN_FILENO, 0);
+        if (np->type.PipeNode.pipe == NULL) {
+          ret = evalNode(np->type.PipeNode.command);
+        } else {
+          ret = evalPipe(np, STDIN_FILENO, 0);
+        }
         break;
       case redir_node:
         ret = evalRedir(np);
@@ -326,10 +328,8 @@ int checkAlias(char* command) {
   return -1;
 }
 
-
-
-// Evaluate a builtin command, no forking!
-int evalBuiltin(Node *np, int binum){
+// Evaluate a builtin command
+int evalBuiltin(Node *np, int binum, int forked){
   fprintf(stderr, "This is a builtin: %d in table.\n", binum); // Debugging
   int ret;
   Node *childparams = np->type.CommandNode.childparams;
@@ -341,9 +341,15 @@ int evalBuiltin(Node *np, int binum){
     paramslist[i] = (curr->type.ParamsNode.first)->type.ParamNode.param;
     curr = curr->type.ParamsNode.second;
   }   
-  ret = bitab[binum].cmdfunc(numparams, paramslist);
-  if (ret == -1) { // Call the builtin function.
+  ret = bitab[binum].cmdfunc(numparams, paramslist); // Call the builtin function
+  if (ret == -1) {
     fprintf(stderr, "Error with builtin.\n"); // If the function returns -1, error.
+    if (forked == 1) {
+      exit(0);
+    }
+  }
+  if (ret == 0 && forked == 1){
+    exit(1);
   }
   return ret;
 }  
@@ -370,9 +376,9 @@ int evalCommand(Node *np) {
   fprintf(stderr, "Executing %s.\n", paramslist[0]);
   if (execvp(paramslist[0], paramslist) == -1) { // Execute the command with execvp().
     fprintf(stderr, "Can't execute %s.\n", paramslist[0]); // Tell us if there's an error.
-    ret = -1; // Exit with a non-zero status.
+    exit(1); // Exit with a non-zero status.
   } else {
-    ret = 0;; // Exit with a zero status (no problems).
+    exit(0); // Exit with a zero status (no problems).
   }
   return ret;
 }
@@ -426,7 +432,7 @@ int evalPipe(Node *np, int in_fd, pid_t pidToWait) {
       if (dup2(fd[1], STDOUT_FILENO) == -1)
         error_exit("Failed to redirect stdout");
       if ((binum = checkBuiltin(np->type.PipeNode.command)) >= 0) {
-        evalBuiltin(np->type.PipeNode.command, binum);
+        evalBuiltin(np->type.PipeNode.command, binum, 1);
       } else {
         evalCommand(np->type.PipeNode.command);
       }
@@ -454,7 +460,7 @@ int evalPipe(Node *np, int in_fd, pid_t pidToWait) {
         else error_exit("Failed to redirect stdin");
         }
       if ((binum = checkBuiltin(np->type.PipeNode.command)) >= 0) {
-        evalBuiltin(np->type.PipeNode.command, binum);
+        evalBuiltin(np->type.PipeNode.command, binum, 1);
       } else {
         evalCommand(np->type.PipeNode.command);
       }
@@ -474,7 +480,16 @@ void displayPrompt(void) {
 }
 
 void initialize(void) {
-
+  // Initialize rootAlias and rootVariable
+  rootAlias = (struct AliasEntry *) malloc( sizeof(struct AliasEntry) );
+  rootAlias->next = NULL;
+  rootAlias->name[0] = '\0';
+  rootAlias->value[0] = '\0';
+  rootVariable = (struct VariableEntry *) malloc( sizeof(struct VariableEntry) );
+  rootVariable->next = NULL;
+  rootVariable->name[0] = '\0';
+  rootVariable->value[0] = '\0';
+  
   // Get PATH
   char *a[2];
   a[0]="PATH";
@@ -518,81 +533,42 @@ int main(void) {
         if(runBG == 1) {
           fprintf(stderr, "Run this in BG!\n");
         }
-        if(doneParsing ==1) {
+        if(doneParsing == 1) {
           fprintf(stderr, "So long!\n");
           exit(0);
         }
         evalNode(RootNode);
-        if(printNode(RootNode) == -1){
-          fprintf(stderr, "Failed to print node\n");
-        }
         freeNode(RootNode);
         fprintf(stderr, "Done evaling..\n");
     }
   }
 }
 
-const char * getal(int nargs, char *args[])
-{
-  fprintf(stderr,"\nRetrieving alias...\n");
-  int i = 0;
-  // fprintf(stderr, "check1\n" );
-
-  fprintf(stderr,"Got args[0]: %s\n", args[0]);
-  
-  while (alias_names[i][0]!='\0' && i <= MAX_ALIAS_LENGTH ) // Find empty slot in variables array
-  {
-    // fprintf(stderr, "check2\n" );
-
-    // fprintf(stderr,"I is currently %i and current varible in slot is %s\n",i,alias_names[i]);
-    //strncpy(hello, variables[i], MAX_VAR_LENGTH);  // Variable at current slot
-    if(strcmp(alias_names[i], args[0]) == 0) // If we have an entry, need to overwrite it
-    {
-      // fprintf(stderr,"Found alias: %s and %s\n",alias_names[i], args[0]);
-      fprintf(stderr,"Found  alias %s = %s at spot %i\n",args[0],alias_vals[i], i); // Not at end if here
-      return alias_vals[i];
+char * getAlias(char *inputstr) {
+  fprintf(stderr,"Retrieving alias...\n");
+    AliasEntry *currEntry;
+    currEntry = rootAlias;
+    while (currEntry != NULL) {
+      if (strcmp(currEntry->name, inputstr) == 0) {
+        fprintf(stderr, "Yay, found alias: %s\n", currEntry->name);
+        return currEntry->value;
+      }
+      fprintf(stderr, "alias while loop\n");
+      currEntry = currEntry->next;
     }
-    //fprintf(stderr, "made it here\n" );
-    i++;
-  }
-  //fprintf(stderr, "check3\n" );
-
-  if(i == MAX_NUM_VARS)  // Now should be at empty slot if not at end
-  {
-    fprintf(stderr,"Oh noes at the end :(\n");
-    return '\0';
-  }
-  // fprintf(stderr, "check4\n" );
-  return '\0';
+  return NULL;
 }
 
-const char * getvar(int nargs, char *args[])
-{
-  fprintf(stderr,"\nRetrieving var...\n");
-  int i = 0;
-  fprintf(stderr,"Got args[0]: %s\n", args[0]);
-  
-  while (variables[i][0]!='\0' && i <= MAX_NUM_VARS ) // Find empty slot in variables array
-  {
-    fprintf(stderr, "Check %i\n",i );
-    // fprintf(stderr,"I is currently %i and current varible in slot is %s\n",i,alias_names[i]);
-    //strncpy(hello, variables[i], MAX_VAR_LENGTH);  // Variable at current slot
-    if(strcmp(variables[i], args[0]) == 0) // If we have an entry, need to overwrite it
-    {
-      fprintf(stderr,"Found alias: %s and %s\n",variables[i], values[i]);
-      // fprintf(stderr,"Found  variable %s = %s at spot %i\n",args[0],values[i], i); // Not at end if here
-      return values[i];
+char * getVar(char *inputstr) {
+  fprintf(stderr,"Retrieving var...\n");
+  VariableEntry *currEntry;
+  currEntry = rootVariable;
+  while (currEntry != NULL) {
+    if (strcmp(currEntry->name, inputstr) == 0) {
+      fprintf(stderr, "Yay, found var: %s\n", currEntry->name);
+      return currEntry->value;
     }
-    i++;
+    currEntry = currEntry->next;
   }
-
-  if(i == MAX_NUM_VARS)  // Now should be at empty slot if not at end
-  {
-    fprintf(stderr,"Oh noes at the end :(\n");
-    return '\0';
-  }
-  return '\0';
+  return NULL;
 }
-
-
-

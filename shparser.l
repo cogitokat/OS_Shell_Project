@@ -9,6 +9,7 @@
 YY_BUFFER_STATE include_stack[MAX_INCLUDE_DEPTH];
 int include_stack_ptr = 0;
 
+
 %}
 
 word ([^\t \n\"\?\\\'\&><\|]|\\&|\\\"|\\>|\\<|\\\'|\\\|)+
@@ -19,14 +20,27 @@ word ([^\t \n\"\?\\\'\&><\|]|\\&|\\\"|\\>|\\<|\\\'|\\\|)+
 %%
                                         char string_buf[MAX_STR_SIZE];
                                         char *string_buf_ptr;
-                                      
+                                        
                                         { if (firstWord==1) {
                                             BEGIN(PROCESS);
                                             fprintf( stderr, "from initial to process\n" );
                                           }
                                         }
-\"                                      {string_buf_ptr = string_buf; BEGIN(DBLQUOTES);}
-\$\{                                    {fprintf(stderr, "Hi, variable!\n"); BEGIN(VARIABLE);}
+
+\"                                      {fprintf(stderr, "begin quote from initial\n");string_buf_ptr = string_buf; BEGIN(DBLQUOTES);}
+ \$\{{word}\}                       { fprintf(stderr, "Hi, variable!\n");
+                                          char *varvalue;
+                                          char subseq[yyleng-2];
+                                          memcpy( subseq, &yytext[2], yyleng-3 );
+                                          subseq[yyleng-3] = '\0';
+                                          if ((varvalue = getVar(subseq)) != NULL){
+                                            fprintf(stderr, "first word = %d\n", firstWord);
+                                            yylval.s = strdup(varvalue);
+                                            return WORD;
+                                           } else {
+                                            fprintf(stderr, "No variable %s\n", yytext);
+                                          }
+                                        }
 
 <DBLQUOTES>{
 [^\\"\n]*      { char *yptr = yytext;
@@ -37,43 +51,28 @@ word ([^\t \n\"\?\\\'\&><\|]|\\&|\\\"|\\>|\\<|\\\'|\\\|)+
 \\n              { *string_buf_ptr++ = '\n'; }
 \\t              { *string_buf_ptr++ = '\t'; }
 \\[\\"]          { *string_buf_ptr++ = yytext[1];}
-\"               { yylval.s = strdup(string_buf); BEGIN(INITIAL); 
-                   *string_buf_ptr = '\0'; return WORD;}
-}
-
-<VARIABLE>{     
-{word}\}      { firstWord=0;
-                if (strcmp(yytext, "variable") == 0){
-                  fprintf(stderr, "switched buffer to str.\n");
-                  fprintf(stderr, "first word = %d\n", firstWord);
-                  yylval.s = strdup("cd");
-                  BEGIN(INITIAL);
-                  return WORD;
-                } else {
-                  fprintf(stderr, "No variable %s\n", yytext);
-                  BEGIN(INITIAL);
-                }
-              }
-[^\n\t ><\$\&\"]   {fprintf(stderr, "Invalid variable!\n"); return ERRTOK;}
+\"               { *string_buf_ptr = '\0';
+                   yylval.s = strdup(string_buf); BEGIN(INITIAL); 
+                   return WORD;}
 }
 
 <PROCESS>{
-\"                                      {fprintf(stderr, "begin quote from process\n"); string_buf_ptr = string_buf; BEGIN(DBLQUOTES);}
-\$\{                                    {fprintf(stderr, "Hi, variable!\n"); BEGIN(VARIABLE);}
 [ \t]+                		              {;}
-{word}   { if ((strcmp(yytext, "test") == 0) && firstWord == 1){
+{word}    { char *alvalue;
+              if ((alvalue = getAlias(yytext)) != NULL && firstWord == 1){
                 if ( include_stack_ptr >= MAX_INCLUDE_DEPTH ) {
-                  fprintf( stderr, "aliases nested too deeply" );
+                  fprintf(stderr, "aliases nested too deeply\n");
                   exit(1);
                 }
+                fprintf(stderr, "alvalue: %s\n", alvalue);
                 include_stack[include_stack_ptr++] = YY_CURRENT_BUFFER;
-                yy_scan_string("cd");
+                yy_scan_string(alvalue);
                 fprintf(stderr, "switched buffer to str.\n");
                 fprintf(stderr, "first word = %d\n", firstWord);
                 BEGIN(INITIAL);
               } else {
                 yylval.s = strdup(yytext);
-                fprintf(stderr, "not test-> %s\n", yytext);
+                fprintf(stderr, "not an alias-> %s\n", yytext);
                 firstWord=0;
                 fprintf(stderr, "first word = %d\n", firstWord);
                 return WORD;
@@ -97,13 +96,13 @@ word ([^\t \n\"\?\\\'\&><\|]|\\&|\\\"|\\>|\\<|\\\'|\\\|)+
 \&                                      {return *yytext;}
 2>					                            {return RE_STDERR;}
 \&1                                     {return STDOUT;}
-[|]                                     {firstWord=1; fprintf(stderr, "pipe, first word = %d\n", firstWord); return *yytext;}
-[><\n]                 		              {return *yytext;}
+[|]                                       {firstWord=1; fprintf(stderr, "pipe, first word = %d\n", firstWord); return *yytext;}
+[><\n]                 		            {return *yytext;}
 [ \t]+                		              {;}
-.                       		            {fprintf(stderr, "Invalid character! %s\n", yytext); return ERRTOK;}
-<<EOF>>                                 { if ( --include_stack_ptr < 0 ) {
+.                       		            { yyerror("Invalid character! %s\n", yytext);}
+<<EOF>>                             { if ( --include_stack_ptr < 0 ) {
                                               fprintf(stderr, "include_stack_ptr=%d\n eof\n", include_stack_ptr);
-                                              return END_OF_FILE;
+                                              yyterminate();
                                             } else {
                                               fprintf(stderr, "include_stack_ptr=%d\ndel buf\n", include_stack_ptr);
                                               yy_delete_buffer( YY_CURRENT_BUFFER );

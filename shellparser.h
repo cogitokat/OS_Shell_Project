@@ -50,12 +50,12 @@ int evalNode(Node *np);
 int evalPipe(Node *np, int in_fd, pid_t pidToWait);
 int evalCommand(Node *np);
 int createProcCommand(Node *np);
+int evalBuiltin(Node *np, int binum, int forked);
 
 void displayPrompt(void);
 void initialize(void);
 int main(void);
 
-
-const char* x_getvar(int, char *[]);
-const char* x_getal(int, char *[]);
+char* getVar(char *inputstr);
+char* getAlias(char *inputstr);
 #endif
