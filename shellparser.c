@@ -212,8 +212,7 @@ int evalRedir(Node *np) {
       
       if((infd = open(np->type.RedirNode.infile, O_RDONLY)) == -1) {
         char *errmsg;
-        sprintf(errmsg, "Can't open file: %s\n", np->type.RedirNode.infile);
-        shell_error(errmsg);
+        shell_error("Can't open file: %s\n", np->type.RedirNode.infile);
         ret = -1;
       }
       // Redirect
@@ -276,7 +275,9 @@ int evalRedir(Node *np) {
   // ** Parent process
   int waitstatus;
   waitstatus = waitpid(childpid, (int*)0, 0);
+  #if defined DEBUG
   fprintf(stderr, "Waiting: %d\n", waitstatus);
+  #endif
   return ret;
 }
 
@@ -295,7 +296,9 @@ int checkBuiltin (Node *np) {
   for (i = 0; i < ncmds; i++) {
     char* testcmd = bitab[i].cmdname;
     if(strcmp(testcmd, command) == 0){
+      #if defined DEBUG
       fprintf(stderr, "Found builtin!\n");
+      #endif
       return i;
     }
   }
@@ -304,7 +307,9 @@ int checkBuiltin (Node *np) {
 
 // Evaluate a builtin command
 int evalBuiltin(Node *np, int binum, int forked){
+  #if defined DEBUG
   fprintf(stderr, "This is a builtin: %d in table.\n", binum); // Debugging
+  #endif
   int ret;
   Node *childparams = np->type.CommandNode.childparams;
   int numparams = countArgs(childparams);
@@ -329,7 +334,9 @@ int evalBuiltin(Node *np, int binum, int forked){
 
 // Evaluate a single command.
 int evalCommand(Node *np) {
+  #if defined DEBUG
   fprintf(stderr, "Evaluating a command..\n");
+  #endif
   char *command = np->type.CommandNode.command;
   Node *childparams = np->type.CommandNode.childparams; // Make a pointer to the params.
   int numparams = countArgs(childparams); // Count the number of params.
@@ -342,10 +349,14 @@ int evalCommand(Node *np) {
     // Add the name of the param that is in the first node.
     // (Remember, the params are a right-skewed binary tree.)
     paramslist[i+1] = (curr->type.ParamsNode.first)->type.ParamNode.param;
-    fprintf(stderr, "Param str: %s\n", (curr->type.ParamsNode.first)->type.ParamNode.param); // Debugging
+    #if defined DEBUG
+    fprintf(stderr, "Param str: %s\n", (curr->type.ParamsNode.first)->type.ParamNode.param);
+    #endif
     curr = curr->type.ParamsNode.second; // Make curr point to the second node.
   }
+  #if defined DEBUG
   fprintf(stderr, "Executing %s.", paramslist[0]);
+  #endif
   if (execvp(paramslist[0], paramslist) == -1) { // Execute the command with execvp().
     shell_error("Can't execute %s", paramslist[0]); // Tell us if there's an error.
     exit(1); // Exit with a non-zero status.
@@ -378,7 +389,9 @@ int createProcCommand(Node *np)
 // Here we will evaluate multiple commands that are 
 // piped together.
 int evalPipe(Node *np, int in_fd, pid_t pidToWait) {
+  #if defined DEBUG
   fprintf(stderr, "recursive pipe function...\n");
+  #endif
   // Only wait if pidToWait is > 0, meaning it is a child
   if (pidToWait>0) {
     waitpid(pidToWait, (int*)0, 0);
@@ -485,7 +498,9 @@ void initialize(void) {
 int getCommand(){
   YY_FLUSH_BUFFER;
   int status = yyparse();
+  #if defined DEBUG
   fprintf(stderr, "yyparse()=%d\n", status);
+  #endif
   if (status == 0){
     return OK;
   } else if (status == 1){
@@ -502,18 +517,26 @@ int main(void) {
     lastExpandedAlias[0] = '\0';
     switch (getCommand()) {
       case ERRORS:
+        #if defined DEBUG
         fprintf(stderr, "Recover from errors...\n");
+        #endif
         break;
       case OK:
         if(doneParsing == 1) {
+          #if defined DEBUG
           fprintf(stderr, "So long!\n");
+          #endif
           exit(0);
         } 
+        #if defined DEBUG
         fprintf(stderr, "Evaluating if fg or bg process.. runBG=%d\n", runBG);
+        #endif
         if (runBG == 1) {
           pid = fork();
           if(pid>0) { // we are the parent 
+            #if defined DEBUG
             fprintf(stderr, "Forked background process pid: %ld\n", (long)pid);
+            #endif
             goto resumePrompt;
           } 
         }
@@ -522,10 +545,14 @@ resumePrompt:
         freeNode(RootNode);
         if(runBG==1&&pid==0) // we are the child
         {
+          #if defined DEBUG
           fprintf(stderr, "Child process doesn't want to live in this world any more!!!\n");
+          #endif
           exit(0); // and the child must die 
         }
+        #if defined DEBUG
         fprintf(stderr, "Done evaling..\n");
+        #endif
     }
     runBG = 0;
   }

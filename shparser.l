@@ -26,14 +26,27 @@ pattern ([^\t \n\"\\\'\&><\|]|\\&|\\\"|\\>|\\<|\\\'|\\\|)+
                                         
                                         { if (firstWord==1) {
                                             BEGIN(PROCESS);
+                                            #if defined DEBUG
                                             fprintf( stderr, "from initial to process\n" );
+                                            #endif
                                           }
                                         }
 
-\"                                      {fprintf(stderr, "begin dblquote from initial\n");string_buf_ptr = string_buf; BEGIN(DBLQUOTES);}
-\'                                      {fprintf(stderr, "begin snglquote from initial\n");string_buf_ptr = string_buf; BEGIN(SNGLQUOTES);}
+\"                                      {
+                                         #if defined DEBUG
+                                         fprintf(stderr, "begin dblquote from initial\n");string_buf_ptr = string_buf; BEGIN(DBLQUOTES);
+                                         #endif
+                                         }
+\'                                      {
+                                         #if defined DEBUG
+                                         fprintf(stderr, "begin snglquote from initial\n");string_buf_ptr = string_buf; BEGIN(SNGLQUOTES);
+                                         #endif
+                                         }
 
- \$\{{word}\}                           { fprintf(stderr, "Hi, variable!\n");
+ \$\{{word}\}                           { 
+                                          #if defined DEBUG
+                                          fprintf(stderr, "Hi, variable!\n");
+                                          #endif
                                           char *varvalue;
                                           char subseq[yyleng-2];
                                           memcpy( subseq, &yytext[2], yyleng-3 );
@@ -42,7 +55,9 @@ pattern ([^\t \n\"\\\'\&><\|]|\\&|\\\"|\\>|\\<|\\\'|\\\|)+
                                             yylval.s = strdup(varvalue);
                                             return WORD;
                                            } else {
+                                            #if defined DEBUG
                                             fprintf(stderr, "No variable %s, ignoring.\n", subseq);
+                                            #endif
                                           }
                                         }
 
@@ -79,21 +94,27 @@ pattern ([^\t \n\"\\\'\&><\|]|\\&|\\\"|\\>|\\<|\\\'|\\\|)+
 {word}    { char *alvalue;
               if ((alvalue = getAlias(yytext)) != NULL && firstWord == 1){
                 if ( include_stack_ptr >= MAX_INCLUDE_DEPTH ) {
+                  #if defined DEBUG
                   fprintf(stderr, "Cannot expand alias: nested too deeply.\n");
+                  #endif
                   yylval.s = strdup(yytext);
                   return WORD;
                 }
                 fprintf(stderr, "alvalue: %s\n", alvalue);
                 include_stack[include_stack_ptr++] = YY_CURRENT_BUFFER;
                 yy_scan_string(alvalue);
+                #if defined DEBUG
                 fprintf(stderr, "switched buffer to str.\n");
                 fprintf(stderr, "first word = %d\n", firstWord);
+                #endif
                 BEGIN(INITIAL);
               } else {
                 yylval.s = strdup(yytext);
-                fprintf(stderr, "not an alias-> %s\n", yytext);
                 firstWord=0;
+                #if defined DEBUG
+                fprintf(stderr, "not an alias-> %s\n", yytext);
                 fprintf(stderr, "first word = %d\n", firstWord);
+                #endif
                 return WORD;
             }
           }
@@ -102,37 +123,54 @@ pattern ([^\t \n\"\\\'\&><\|]|\\&|\\\"|\\>|\\<|\\\'|\\\|)+
 
 
 {word}                                  { if(firstWord==1) {
+                                            #if defined DEBUG
                                             fprintf(stderr, "first word = %d\n", firstWord);
+                                            #endif
                                             yyless(0); BEGIN(PROCESS); 
+                                            #if defined DEBUG
                                             fprintf( stderr, "from initial to process w/ word\n" );
+                                            #endif
                                           } else {
                                             yylval.s = strdup(yytext);
+                                            #if defined DEBUG
                                             fprintf(stderr, "first word = %d\n", firstWord);
                                             fprintf(stderr, "not first word %s\n", yytext);
+                                            #endif
                                             return WORD;
                                           }
                                         }
-{pattern}                              { fprintf(stderr, "YAY A PATTERN! %s\n", yytext); 
+{pattern}                              { 
+                                         #if defined DEBUG
+                                         fprintf(stderr, "YAY A PATTERN! %s\n", yytext); 
+                                         #endif
                                          yylval.s = strdup(yytext); return PATTERN;}
 
                                          
 \&                                      {return *yytext;}
 2>					                            {return RE_STDERR;}
 \&1                                     {return STDOUT;}
-[|]                                     {firstWord=1; fprintf(stderr, "pipe, first word = %d\n", firstWord); return *yytext;}
+[|]                                     {firstWord=1;
+                                         #if defined DEBUG
+                                         fprintf(stderr, "pipe, first word = %d\n", firstWord);
+                                         #endif
+                                         return *yytext;}
 [><]                   		              {return *yytext;}
 [\n]                                    {++inputlineno; return *yytext;}
 [ \t]+                		              {;}
 .                       		            { yyerror("Invalid character!\n");}
 <<EOF>>                                 { if ( --include_stack_ptr < 0 ) {
-                                              fprintf(stderr, "include_stack_ptr=%d\n eof\n", include_stack_ptr);
-                                              yyterminate();
-                                            } else {
-                                              fprintf(stderr, "include_stack_ptr=%d\ndel buf\n", include_stack_ptr);
-                                              yy_delete_buffer( YY_CURRENT_BUFFER );
-                                              yy_switch_to_buffer( include_stack[include_stack_ptr] );
-                                            }
+                                            #if defined DEBUG
+                                            fprintf(stderr, "include_stack_ptr=%d\n eof\n", include_stack_ptr);
+                                            #endif
+                                            yyterminate();
+                                          } else {
+                                            #if defined DEBUG
+                                            fprintf(stderr, "include_stack_ptr=%d\ndel buf\n", include_stack_ptr);
+                                            #endif
+                                            yy_delete_buffer( YY_CURRENT_BUFFER );
+                                            yy_switch_to_buffer( include_stack[include_stack_ptr] );
                                           }
+                                        }
 
 %%
 

@@ -32,78 +32,55 @@ Node* expandPattern(char* pattern);
 
 %%
 
-start : line                            {fprintf(stdout, "start\n"); doneParsing = 1; }
-      | error                           {fprintf(stdout, "General error\n"); YYABORT;}
+start : line                            {doneParsing = 1;}
+      | error                           {shell_error("parser error"); YYABORT;}
       ;
 
-line : line commands '\n'               {fprintf(stdout, "line commands\n"); 
-                                         RootNode = $2; runBG = 0; return 0;}
-     | line redir '\n'                  {fprintf(stdout, "line redir\n");
-                                         RootNode = $2; runBG = 0; return 0;}
-     | line commands '&' '\n'           {fprintf(stdout, "line command\n"); 
-                                         RootNode = $2; runBG = 1; return 0;}
-     | line redir '&' '\n'              {fprintf(stdout, "line redir\n"); 
-                                         RootNode = $2; runBG = 1; return 0;}
+line : line commands '\n'               {RootNode = $2; runBG = 0; return 0;}
+     | line redir '\n'                  {RootNode = $2; runBG = 0; return 0;}
+     | line commands '&' '\n'           {RootNode = $2; runBG = 1; return 0;}
+     | line redir '&' '\n'              {RootNode = $2; runBG = 1; return 0;}
      | /*EMPTY*/      
      | line '\n'
      ;
 
-redir : commandline '<' WORD                                     {fprintf(stdout, "< WORD\n"); 
-                                                                $$ = new_redir($1, $3, NULL, 0, NULL, 0);}
-      | commandline '<' WORD '>' WORD                            {fprintf(stdout, "< WORD > WORD\n");
-                                                                $$ = new_redir($1, $3, $5, 0, NULL, 0);}
-      | commandline '<' WORD '>' '>' WORD                        {fprintf(stdout, "< WORD >> WORD\n");
-                                                                $$ = new_redir($1, $3, $6, 1, NULL, 0);}
-      | commandline '<' WORD '>' WORD RE_STDERR WORD             {fprintf(stdout, "< WORD > WORD RE_STDERR WORD\n");
-                                                                $$ = new_redir($1, $3, $5, 0, $7, 0);}
-      | commandline '<' WORD '>' WORD RE_STDERR STDOUT           {fprintf(stdout, "< WORD > WORD RE_STDERR STOUT\n");
-                                                                $$ = new_redir($1, $3, $5, 0, NULL, 1);}
-      | commandline '<' WORD '>' '>' WORD RE_STDERR WORD         {fprintf(stdout, "< %s >> %s 2> %s\n", $3, $6, $8);
-                                                                $$ = new_redir($1, $3, $6, 1, $8, 0);}
-      | commandline '<' WORD '>' '>' WORD RE_STDERR STDOUT       {fprintf(stdout, "< WORD >> WORD RE_STDERR STOUT\n");
-                                                                $$ = new_redir($1, $3, $6, 1, NULL, 1);}
-      | commandline '>' WORD                                     {fprintf(stdout, "> WORD\n");
-                                                                $$ = new_redir($1, NULL, $3, 0, NULL, 0);}
-      | commandline '>' '>' WORD                                 {fprintf(stdout, ">> WORD\n");
-                                                                $$ = new_redir($1, NULL, $4, 1, NULL, 0);}
-      | commandline '>' WORD RE_STDERR WORD                      {fprintf(stdout, "> WORD RE_STDERR WORD\n");
-                                                                $$ = new_redir($1, NULL, $3, 0, $5, 0);}
-      | commandline '>' '>' WORD RE_STDERR WORD                  {fprintf(stdout, ">> WORD RE_STDERR WORD\n");
-                                                                $$ = new_redir($1, NULL, $4, 1, $6, 0);}
-      | commandline '>' WORD RE_STDERR STDOUT                    {fprintf(stdout, "> WORD RE_STDERR STDOUT\n");
-                                                                $$ = new_redir($1, NULL, $3, 0, NULL, 1);}
-      | commandline '>' '>' WORD RE_STDERR STDOUT                {fprintf(stdout, ">> WORD RE_STDERR STDOUT\n");
-                                                                $$ = new_redir($1, NULL, $4, 1, NULL, 1);}
-      | commandline '<' WORD RE_STDERR WORD                      {fprintf(stdout, "< WORD RE_STDERR WORD\n");
-                                                                $$ = new_redir($1, $3, NULL, 0, $5, 0);}
-      | commandline '<' WORD RE_STDERR STDOUT                    {fprintf(stdout, "< WORD RE_STDERR STDOUT\n");
-                                                                $$ = new_redir($1, $3, NULL, 0, NULL, 1);}
-      | commandline RE_STDERR WORD                               {fprintf(stdout, "RE_STDERR WORD\n");
-                                                                $$ = new_redir($1, NULL, NULL, 0, $3, 0);}
-      | commandline RE_STDERR STDOUT                             {fprintf(stdout, "RE_STDERR\n");
-                                                                $$ = new_redir($1, NULL, NULL, 0, NULL, 0);}
+redir : commandline '<' WORD                                     {$$ = new_redir($1, $3, NULL, 0, NULL, 0);}
+      | commandline '<' WORD '>' WORD                            {$$ = new_redir($1, $3, $5, 0, NULL, 0);}
+      | commandline '<' WORD '>' '>' WORD                        {$$ = new_redir($1, $3, $6, 1, NULL, 0);}
+      | commandline '<' WORD '>' WORD RE_STDERR WORD             {$$ = new_redir($1, $3, $5, 0, $7, 0);}
+      | commandline '<' WORD '>' WORD RE_STDERR STDOUT           {$$ = new_redir($1, $3, $5, 0, NULL, 1);}
+      | commandline '<' WORD '>' '>' WORD RE_STDERR WORD         {$$ = new_redir($1, $3, $6, 1, $8, 0);}
+      | commandline '<' WORD '>' '>' WORD RE_STDERR STDOUT       {$$ = new_redir($1, $3, $6, 1, NULL, 1);}
+      | commandline '>' WORD                                     {$$ = new_redir($1, NULL, $3, 0, NULL, 0);}
+      | commandline '>' '>' WORD                                 {$$ = new_redir($1, NULL, $4, 1, NULL, 0);}
+      | commandline '>' WORD RE_STDERR WORD                      {$$ = new_redir($1, NULL, $3, 0, $5, 0);}
+      | commandline '>' '>' WORD RE_STDERR WORD                  {$$ = new_redir($1, NULL, $4, 1, $6, 0);}
+      | commandline '>' WORD RE_STDERR STDOUT                    {$$ = new_redir($1, NULL, $3, 0, NULL, 1);}
+      | commandline '>' '>' WORD RE_STDERR STDOUT                {$$ = new_redir($1, NULL, $4, 1, NULL, 1);}
+      | commandline '<' WORD RE_STDERR WORD                      {$$ = new_redir($1, $3, NULL, 0, $5, 0);}
+      | commandline '<' WORD RE_STDERR STDOUT                    {$$ = new_redir($1, $3, NULL, 0, NULL, 1);}
+      | commandline RE_STDERR WORD                               {$$ = new_redir($1, NULL, NULL, 0, $3, 0);}
+      | commandline RE_STDERR STDOUT                             {$$ = new_redir($1, NULL, NULL, 0, NULL, 0);}
       ;
 
-commandline : commands                                          {fprintf(stdout, "commandline\n"); 
-                                                                                 $$ = $1;}
+commandline : commands                                          {$$ = $1;}
             ;
 
-commands : command '|' commands         {fprintf(stdout, "command | commands\n"); $$ = new_pipe($1, $3);}
-         | command                      {fprintf(stdout, "command\n"); $$ = new_pipe($1, NULL);}
+commands : command '|' commands         {$$ = new_pipe($1, $3);}
+         | command                      {$$ = new_pipe($1, NULL);}
          ;
 
-command : WORD                          {fprintf(stdout, "WORD (%s)\n", $1); $$ = new_command($1, NULL);}
-        | WORD params                   {fprintf(stdout, "WORD (%s) params\n", $1);$$ = new_command($1, $2);}
+command : WORD                          {$$ = new_command($1, NULL);}
+        | WORD params                   {$$ = new_command($1, $2);}
         | PATTERN '\n'                  {yyerror("syntax error, pattern received instead of a command\n"); YYABORT;}
         ;         
 
-params : param                          {fprintf(stdout, "param\n"); $$ = new_params($1, NULL);}
-       | PATTERN                        {fprintf(stdout, "PATTERN (%s)\n", $1); 
-                                           $$ = expandPattern($1); }
-       | param params                   {fprintf(stdout, "param params\n"); $$ = new_params($1, $2);}
+params : param                          {$$ = new_params($1, NULL);}
+       | PATTERN                        {$$ = expandPattern($1); }
+       | param params                   {$$ = new_params($1, $2);}
        ;
        
-param : WORD                            {fprintf(stdout, "WORD (%s)\n", $1); $$ = new_param($1);}
+param : WORD                            {$$ = new_param($1);}
       ;
       
 %%
