@@ -7,13 +7,14 @@
 #include <sys/wait.h>
 #include <signal.h>
 #include <errno.h>
+#include <stdarg.h>
 #include "shellparser.h"
 #include "builtins.h"
 #include "y.tab.h"
 
 extern YY_FLUSH_BUFFER;
 extern FILE * yyin;
-void shell_error(char *msg);
+void shell_error(const char *msg, ...);
 
 // Functions for creating different types of nodes and
 // adding values and node pointers to them.
@@ -199,7 +200,7 @@ int evalRedir(Node *np) {
 
   pid_t childpid;
   if ((childpid = fork()) == -1) {
-    shell_exit("Failed to fork for redir");
+    shell_error("Failed to fork for redir");
     return -1;
   }
   
