@@ -5,11 +5,15 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <signal.h>
+#include <errno.h>
 #include "shellparser.h"
 #include "builtins.h"
 #include "y.tab.h"
 
-static void error_exit(const char *msg);
+extern YY_FLUSH_BUFFER;
+extern FILE * yyin;
+void shell_error(char *msg);
 
 // Functions for creating different types of nodes and
 // adding values and node pointers to them.
@@ -90,7 +94,8 @@ void freeNode(Node *np){
         free(np->type.RedirNode.stderrfile);
         break;
       default:
-        error_exit("Error in freeNode(): Invalid Node Type.");
+        shell_error("Error in freeNode(): Invalid Node Type.");
+        return;
         
     }   
     free(np); // Free the np.
@@ -140,7 +145,7 @@ int printNode(Node *np) {
         }
         break;
       default:
-        fprintf(stderr, "Error: cannot print node of invalid type\n");
+        shell_error("Error: cannot print node of invalid type");
         ret = -1;
         break;
     }
@@ -156,6 +161,7 @@ int evalNode(Node *np) {
   } else {
     int ret = 0;
     int binum;
+    
     switch (np->label) {
       case command_node:
         if ((binum = checkBuiltin(np)) >= 0) {
@@ -175,69 +181,43 @@ int evalNode(Node *np) {
         ret = evalRedir(np);
         break;
       default:
-        fprintf(stderr, "Error: cannot evaluate node of invalid type\n");
+        shell_error("Error: cannot evaluate node of invalid type");
         ret = -1;
         break;
     }
+    
     return ret;
   }
 }
 
 int evalRedir(Node *np) {
   fprintf(stderr, "Successful redirection!\n");
-/*  switch (np->type.RedirNode.commandline->label) {
-    case command_node:
-      fprintf(stderr, "Command: %s\n", np->type.RedirNode.commandline->type.CommandNode.command);
-      break;
-    case pipe_node:
-      fprintf(stderr, "First command: %s\n", np->type.RedirNode.commandline->\
-                                                 type.PipeNode.command->\
-                                                 type.CommandNode.command);
-      break;
-    default:
-      fprintf(stderr, "Redirect node has invalid pointer.\n");
-      break;
-  }
-  if (np->type.RedirNode.infile != NULL)
-    fprintf(stderr, "Infile: %s\n", np->type.RedirNode.infile);
-  if (np->type.RedirNode.outfile != NULL)
-    fprintf(stderr, "Outfile: %s\n", np->type.RedirNode.outfile);
-  if (np->type.RedirNode.append >= 0)
-    fprintf(stderr, "Append: %d\n", np->type.RedirNode.append);
-  if (np->type.RedirNode.stderrfile != NULL)
-    fprintf(stderr, "Stderrfile: %s\n", np->type.RedirNode.stderrfile);
-  if (np->type.RedirNode.stderr_to_out >= 0)
-    fprintf(stderr, "Stderr to out: %d\n", np->type.RedirNode.stderr_to_out);*/
-  
   int ret;
   int infd;
   int outfd;
   int errfd;
 
-      // If it exists, Get input from infile, connect the fd[infile in r] to STDIN 
-      // forked process
-      // If it exists, Get outfile, connect the STDOUT to fd[outfile in w/a]
-      // If it exists, Get stderrfile, connect the STDERR to fd[stderrfile in w]
-      //    Else if stderr_to_out is 1, connect STDERR to STDOUT
-      // evalCommand OR evalPipe
-      // 
   pid_t childpid;
   if ((childpid = fork()) == -1) {
-    fprintf(stderr, "Failed to fork for redir.\n");
+    shell_exit("Failed to fork for redir");
     return -1;
   }
   
   if (childpid == 0) { // ** Child process
+  
+  
     // ** STDIN from file
     if(np->type.RedirNode.infile != NULL) {
       
       if((infd = open(np->type.RedirNode.infile, O_RDONLY)) == -1) {
-        fprintf(stderr, "Can't open file: %s\n", np->type.RedirNode.infile);
+        char *errmsg;
+        sprintf(errmsg, "Can't open file: %s\n", np->type.RedirNode.infile);
+        shell_error(errmsg);
         ret = -1;
       }
       // Redirect
       if (dup2(infd, STDIN_FILENO) == -1) {
-        fprintf(stderr, "Failed to redirect stdin\n");
+        shell_error("Failed to redirect stdin");
         ret = -1;
       }
     }
@@ -248,23 +228,23 @@ int evalRedir(Node *np) {
       // Don't append
       if (np->type.RedirNode.append == 0) {
         if((outfd = open(np->type.RedirNode.outfile, O_WRONLY|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH)) == -1) {
-          fprintf(stderr, "Can't open file: %s\n", np->type.RedirNode.outfile);
+          shell_error("Can't open file: %s\n", np->type.RedirNode.outfile);
           ret = -1;
         }
         // Do append
       } else if (np->type.RedirNode.append == 1) {
         if((outfd = open(np->type.RedirNode.outfile, O_WRONLY|O_CREAT|O_APPEND, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH)) == -1) {
-          fprintf(stderr, "Can't open file: %s\n", np->type.RedirNode.outfile);
+          shell_error("Can't open file: %s\n", np->type.RedirNode.outfile);
           ret = -1;
         }
       // Append is unknown
       } else {
-        fprintf(stderr, "Do I append or not? ): \n");
+        shell_error("Do I append or not? ):");
         ret = -1;
       }
       // Redirect
       if (dup2(outfd, STDOUT_FILENO) == -1) {
-        fprintf(stderr, "Failed to redirect stdout\n");
+        shell_error("Failed to redirect stdout");
         ret = -1;
       }
     }
@@ -273,19 +253,19 @@ int evalRedir(Node *np) {
     // ** STDERR to file
     if ((np->type.RedirNode.stderrfile != NULL) && (np->type.RedirNode.stderr_to_out == 0)) {
       if((errfd = open(np->type.RedirNode.stderrfile, O_WRONLY|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH)) == -1) {
-        fprintf(stderr, "Can't open file: %s\n", np->type.RedirNode.stderrfile);
+        shell_error("Can't open file: %s", np->type.RedirNode.stderrfile);
         ret = -1;
       }
       // Redirect
       if (dup2(errfd, STDERR_FILENO) == -1) {
-        fprintf(stderr, "Failed to redirect stderr\n");
+        shell_error("Failed to redirect stderr");
         ret = -1;
       }
     // ** STDERR to STDOUT
     } else if ((np->type.RedirNode.stderrfile == NULL) && (np->type.RedirNode.stderr_to_out == 1)) {
       // Redirect
       if (dup2(STDOUT_FILENO, STDERR_FILENO) == -1) {
-        fprintf(stderr, "Failed to redirect stderr to stdout\n");
+        shell_error("Failed to redirect stderr to stdout");
         ret = -1;
       }
     }
@@ -299,9 +279,7 @@ int evalRedir(Node *np) {
   return ret;
 }
 
-// Recursively count the number of params. The params node is a
-// right-skewed binary tree, so we only need to follow the
-// second node pointers.
+// Recursively count the number of params.
 int countArgs(Node *paramsptr) {
   int count = 0;
   if (paramsptr != NULL) {
@@ -323,11 +301,6 @@ int checkBuiltin (Node *np) {
   return -1;
 }
 
-// Maybe we will check for aliases here.
-int checkAlias(char* command) {
-  return -1;
-}
-
 // Evaluate a builtin command
 int evalBuiltin(Node *np, int binum, int forked){
   fprintf(stderr, "This is a builtin: %d in table.\n", binum); // Debugging
@@ -343,13 +316,12 @@ int evalBuiltin(Node *np, int binum, int forked){
   }   
   ret = bitab[binum].cmdfunc(numparams, paramslist); // Call the builtin function
   if (ret == -1) {
-    fprintf(stderr, "Error with builtin.\n"); // If the function returns -1, error.
     if (forked == 1) {
-      exit(0);
+      exit(1);
     }
   }
   if (ret == 0 && forked == 1){
-    exit(1);
+    exit(0);
   }
   return ret;
 }  
@@ -357,7 +329,6 @@ int evalBuiltin(Node *np, int binum, int forked){
 // Evaluate a single command.
 int evalCommand(Node *np) {
   fprintf(stderr, "Evaluating a command..\n");
-  int ret;
   char *command = np->type.CommandNode.command;
   Node *childparams = np->type.CommandNode.childparams; // Make a pointer to the params.
   int numparams = countArgs(childparams); // Count the number of params.
@@ -373,14 +344,14 @@ int evalCommand(Node *np) {
     fprintf(stderr, "Param str: %s\n", (curr->type.ParamsNode.first)->type.ParamNode.param); // Debugging
     curr = curr->type.ParamsNode.second; // Make curr point to the second node.
   }
-  fprintf(stderr, "Executing %s.\n", paramslist[0]);
+  fprintf(stderr, "Executing %s.", paramslist[0]);
   if (execvp(paramslist[0], paramslist) == -1) { // Execute the command with execvp().
-    fprintf(stderr, "Can't execute %s.\n", paramslist[0]); // Tell us if there's an error.
+    shell_error("Can't execute %s", paramslist[0]); // Tell us if there's an error.
     exit(1); // Exit with a non-zero status.
   } else {
     exit(0); // Exit with a zero status (no problems).
   }
-  return ret;
+  return 1;
 }
 
 // Create a new process for a single command
@@ -388,23 +359,19 @@ int evalCommand(Node *np) {
 int createProcCommand(Node *np) 
 {
   int ret = 0;
-  int process;
+  pid_t process;
   process = fork(); // Create a new process for the command.
   if (process > 0) { // If the process is > 0, we are still the parent,
-    wait((int *) 0); // so wait. (Null pointer - return value not saved.)
+    waitpid(process, (int *) 0, 0); // so wait.
   }
   else if (process == 0) { // If process == 0, we are in the child...
     ret = evalCommand(np);
   }
   else if (process == -1) { // If process == -1, then something went wrong.
-    error_exit("Can't fork!");
+    shell_error("Can't fork!");
+    exit(1);
   }
   return ret;
-}
-
-static void error_exit(const char *msg){
-  perror(msg);
-  exit(EXIT_FAILURE);
 }
 
 // Here we will evaluate multiple commands that are 
@@ -422,15 +389,20 @@ int evalPipe(Node *np, int in_fd, pid_t pidToWait) {
     pid_t childpid;
 
     if ((pipe(fd) == -1) || ((childpid = fork()) == -1)) {
-      error_exit("Failed to setup pipeline");
+      shell_error("Failed to setup pipeline");
+      exit(1);
     }
 
     if (childpid == 0){ // child
       int binum;
-      if (dup2(in_fd, STDIN_FILENO) == -1)
-        error_exit("Failed to redirect stdin");
-      if (dup2(fd[1], STDOUT_FILENO) == -1)
-        error_exit("Failed to redirect stdout");
+      if (dup2(in_fd, STDIN_FILENO) == -1) {
+        shell_error("Failed to redirect stdin");
+        exit(1);
+      }
+      if (dup2(fd[1], STDOUT_FILENO) == -1) {
+        shell_error("Failed to redirect stdout");
+        exit(1);
+      }
       if ((binum = checkBuiltin(np->type.PipeNode.command)) >= 0) {
         evalBuiltin(np->type.PipeNode.command, binum, 1);
       } else {
@@ -455,10 +427,13 @@ int evalPipe(Node *np, int in_fd, pid_t pidToWait) {
     if (childpid == 0) { // child
       int binum;
       if(in_fd != STDIN_FILENO) {
-        if (dup2(in_fd, STDIN_FILENO) != -1)
+        if (dup2(in_fd, STDIN_FILENO) != -1) {
           close(in_fd);
-        else error_exit("Failed to redirect stdin");
+        } else {
+          shell_error("Failed to redirect stdin");
+          exit(1);
         }
+      }
       if ((binum = checkBuiltin(np->type.PipeNode.command)) >= 0) {
         evalBuiltin(np->type.PipeNode.command, binum, 1);
       } else {
@@ -475,40 +450,39 @@ int evalPipe(Node *np, int in_fd, pid_t pidToWait) {
 
 void displayPrompt(void) {
   if(isatty(0)) {
-    fprintf(stdout, "$: ");
+    char hostname[1024];
+    hostname[1023] = '\0';
+    gethostname(hostname, 1023);
+    fprintf(stdout, "%s@%s:%s$ ", getenv("USER"), hostname, getenv("PWD"));
   }
 }
 
 void initialize(void) {
+  
+  // Disable shell-killers
+  signal(SIGINT, SIG_IGN);
+  signal(SIGQUIT, SIG_IGN);
+  signal(SIGTSTP, SIG_IGN);
+  
   // Initialize rootAlias and rootVariable
   rootAlias = (struct AliasEntry *) malloc( sizeof(struct AliasEntry) );
   rootAlias->next = NULL;
   rootAlias->name[0] = '\0';
   rootAlias->value[0] = '\0';
-  rootVariable = (struct VariableEntry *) malloc( sizeof(struct VariableEntry) );
-  rootVariable->next = NULL;
-  rootVariable->name[0] = '\0';
-  rootVariable->value[0] = '\0';
-  
-  // Get PATH
-  char *a[2];
-  a[0]="PATH";
-  a[1]= getenv("PATH"); // TODO: Change this if needed
-  x_setenv(2, a);
-
-  // Get HOME
-  char *b[2];
-  b[0]="HOME";
-  b[1]= getenv("HOME"); // TODO: Change this if needed
-  x_setenv(2, b);
   
   // Global flags
   runBG = 0;
   doneParsing = 0;
   firstWord = 1;
+  inputlineno = 0;
+
+  // Alias expansion value
+  lastExpandedAlias[0] = '\0';
+
 }
 
 int getCommand(){
+  YY_FLUSH_BUFFER;
   int status = yyparse();
   fprintf(stderr, "yyparse()=%d\n", status);
   if (status == 0){
@@ -519,56 +493,49 @@ int getCommand(){
 }
 
 int main(void) {
+  pid_t pid;
   initialize();
   while(1) {
     displayPrompt();
     firstWord = 1;
+    lastExpandedAlias[0] = '\0';
     switch (getCommand()) {
       case ERRORS:
         fprintf(stderr, "Recover from errors...\n");
-        while(yylex()) 
-          fprintf(stderr, "clear lex: %s\n", yylval.s);
         break;
       case OK:
-        if(runBG == 1) {
-          fprintf(stderr, "Run this in BG!\n");
-        }
         if(doneParsing == 1) {
           fprintf(stderr, "So long!\n");
           exit(0);
+        } 
+        fprintf(stderr, "Evaluating if fg or bg process.. runBG=%d\n", runBG);
+        if (runBG == 1) {
+          pid = fork();
+          if(pid>0) { // we are the parent 
+            fprintf(stderr, "Forked background process pid: %ld\n", (long)pid);
+            goto resumePrompt;
+          } 
         }
         evalNode(RootNode);
+resumePrompt:
         freeNode(RootNode);
+        if(runBG==1&&pid==0) // we are the child
+        {
+          fprintf(stderr, "Child process doesn't want to live in this world any more!!!\n");
+          exit(0); // and the child must die 
+        }
         fprintf(stderr, "Done evaling..\n");
     }
+    runBG = 0;
   }
 }
 
-char * getAlias(char *inputstr) {
-  fprintf(stderr,"Retrieving alias...\n");
-    AliasEntry *currEntry;
-    currEntry = rootAlias;
-    while (currEntry != NULL) {
-      if (strcmp(currEntry->name, inputstr) == 0) {
-        fprintf(stderr, "Yay, found alias: %s\n", currEntry->name);
-        return currEntry->value;
-      }
-      fprintf(stderr, "alias while loop\n");
-      currEntry = currEntry->next;
-    }
-  return NULL;
+void shell_error(const char *msg, ...){
+  va_list argptr;
+  fprintf(stderr, "Line %d: ", inputlineno);
+  va_start(argptr, msg);
+  vfprintf(stderr, msg, argptr);
+  va_end(argptr);
+  fprintf(stderr, ", %s\n", strerror(errno));
 }
 
-char * getVar(char *inputstr) {
-  fprintf(stderr,"Retrieving var...\n");
-  VariableEntry *currEntry;
-  currEntry = rootVariable;
-  while (currEntry != NULL) {
-    if (strcmp(currEntry->name, inputstr) == 0) {
-      fprintf(stderr, "Yay, found var: %s\n", currEntry->name);
-      return currEntry->value;
-    }
-    currEntry = currEntry->next;
-  }
-  return NULL;
-}

@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <glob.h>
 #include "builtins.h"
 #include "shellparser.h"
 
@@ -9,6 +10,8 @@ extern void yyerror(const char *msg);
 extern int yylineno;
 extern char * yytext;
 extern int yylex(void);
+
+Node* expandPattern(char* pattern);
 
 %}
 
@@ -21,7 +24,7 @@ extern int yylex(void);
 };
 
 %token <num> NUMBER
-%token <s> WORD
+%token <s> WORD PATTERN
 %token ERRTOK STDOUT RE_STDERR
 %token '\n' '>' '<' '&'
 %left '|'
@@ -30,6 +33,8 @@ extern int yylex(void);
 %%
 
 start : line                            {fprintf(stdout, "start\n"); doneParsing = 1; }
+      | error                           {fprintf(stdout, "General error\n"); YYABORT;}
+      ;
 
 line : line commands '\n'               {fprintf(stdout, "line commands\n"); 
                                          RootNode = $2; runBG = 0; return 0;}
@@ -84,14 +89,17 @@ commandline : commands                                          {fprintf(stdout,
             ;
 
 commands : command '|' commands         {fprintf(stdout, "command | commands\n"); $$ = new_pipe($1, $3);}
-         | command                                     {fprintf(stdout, "command\n"); $$ = new_pipe($1, NULL);}
+         | command                      {fprintf(stdout, "command\n"); $$ = new_pipe($1, NULL);}
          ;
 
 command : WORD                          {fprintf(stdout, "WORD (%s)\n", $1); $$ = new_command($1, NULL);}
         | WORD params                   {fprintf(stdout, "WORD (%s) params\n", $1);$$ = new_command($1, $2);}
+        | PATTERN '\n'                  {yyerror("syntax error, pattern received instead of a command\n"); YYABORT;}
         ;         
 
 params : param                          {fprintf(stdout, "param\n"); $$ = new_params($1, NULL);}
+       | PATTERN                        {fprintf(stdout, "PATTERN (%s)\n", $1); 
+                                           $$ = expandPattern($1); }
        | param params                   {fprintf(stdout, "param params\n"); $$ = new_params($1, $2);}
        ;
        
@@ -101,5 +109,39 @@ param : WORD                            {fprintf(stdout, "WORD (%s)\n", $1); $$ 
 %%
 
 void yyerror(const char *msg) {
-  fprintf(stderr, "line %d: %s at %s\n", yylineno, msg, yytext);
+  if (isatty(0)){
+    fprintf(stderr, "%s\n", msg);
+  } else {
+    fprintf(stderr, "line %d: %s\n", inputlineno, msg);
+  }
 }
+
+Node* expandPattern(char* pattern) {
+   glob_t globbuf;
+   Node* retParams = new_params(NULL, NULL);
+   
+   glob(pattern, GLOB_NOCHECK, NULL, &globbuf);
+   
+   if(globbuf.gl_pathc==0) { // No matches for our wildcards
+    Node* newparam = new_param(pattern);
+    retParams->type.ParamsNode.first = newparam;
+    retParams->type.ParamsNode.second = NULL;
+   } else if(globbuf.gl_pathc>0) { // Results!!
+    int i;
+    Node* nparam;
+    Node* nparams = retParams;
+    for(i=0;i<globbuf.gl_pathc;i++)
+    {
+     nparam = new_param(globbuf.gl_pathv[i]);
+     nparams->type.ParamsNode.first = nparam;
+     if(i+1==globbuf.gl_pathc) { // We are on our final iteration 
+       nparams->type.ParamsNode.second = NULL;
+     } else {
+      nparams->type.ParamsNode.second = new_params(NULL,NULL);
+      nparams = nparams->type.ParamsNode.second;
+     }
+    }
+   }
+  return retParams;
+   
+ }

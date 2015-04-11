@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "shellparser.h"
+#include "builtins.h"
 #include "y.tab.h"
 
 #define MAX_STR_SIZE 1000
@@ -12,8 +13,10 @@ int include_stack_ptr = 0;
 
 %}
 
-word ([^\t \n\"\?\\\'\&><\|]|\\&|\\\"|\\>|\\<|\\\'|\\\|)+
+word ([^\t \n\"\?\\\'\&><\|\*]|\\&|\\\"|\\>|\\<|\\\'|\\\|)+
+pattern ([^\t \n\"\\\'\&><\|]|\\&|\\\"|\\>|\\<|\\\'|\\\|)+
 %x DBLQUOTES
+%x SNGLQUOTES
 %x VARIABLE
 %s PROCESS
 
@@ -27,18 +30,19 @@ word ([^\t \n\"\?\\\'\&><\|]|\\&|\\\"|\\>|\\<|\\\'|\\\|)+
                                           }
                                         }
 
-\"                                      {fprintf(stderr, "begin quote from initial\n");string_buf_ptr = string_buf; BEGIN(DBLQUOTES);}
- \$\{{word}\}                       { fprintf(stderr, "Hi, variable!\n");
+\"                                      {fprintf(stderr, "begin dblquote from initial\n");string_buf_ptr = string_buf; BEGIN(DBLQUOTES);}
+\'                                      {fprintf(stderr, "begin snglquote from initial\n");string_buf_ptr = string_buf; BEGIN(SNGLQUOTES);}
+
+ \$\{{word}\}                           { fprintf(stderr, "Hi, variable!\n");
                                           char *varvalue;
                                           char subseq[yyleng-2];
                                           memcpy( subseq, &yytext[2], yyleng-3 );
                                           subseq[yyleng-3] = '\0';
-                                          if ((varvalue = getVar(subseq)) != NULL){
-                                            fprintf(stderr, "first word = %d\n", firstWord);
+                                          if ((varvalue = getenv(subseq)) != NULL){
                                             yylval.s = strdup(varvalue);
                                             return WORD;
                                            } else {
-                                            fprintf(stderr, "No variable %s\n", yytext);
+                                            fprintf(stderr, "No variable %s, ignoring.\n", subseq);
                                           }
                                         }
 
@@ -56,13 +60,28 @@ word ([^\t \n\"\?\\\'\&><\|]|\\&|\\\"|\\>|\\<|\\\'|\\\|)+
                    return WORD;}
 }
 
+<SNGLQUOTES>{
+[^\\'\n]*      { char *yptr = yytext;
+                   while ( *yptr )
+                   *string_buf_ptr++ = *yptr++;
+               }
+\n               { printf(">> "); *string_buf_ptr++ = '\n'; }
+\\n              { *string_buf_ptr++ = '\n'; }
+\\t              { *string_buf_ptr++ = '\t'; }
+\\[\\']          { *string_buf_ptr++ = yytext[1];}
+\'               { *string_buf_ptr = '\0';
+                   yylval.s = strdup(string_buf); BEGIN(INITIAL); 
+                   return WORD;}
+}
+
 <PROCESS>{
 [ \t]+                		              {;}
 {word}    { char *alvalue;
               if ((alvalue = getAlias(yytext)) != NULL && firstWord == 1){
                 if ( include_stack_ptr >= MAX_INCLUDE_DEPTH ) {
-                  fprintf(stderr, "aliases nested too deeply\n");
-                  exit(1);
+                  fprintf(stderr, "Cannot expand alias: nested too deeply.\n");
+                  yylval.s = strdup(yytext);
+                  return WORD;
                 }
                 fprintf(stderr, "alvalue: %s\n", alvalue);
                 include_stack[include_stack_ptr++] = YY_CURRENT_BUFFER;
@@ -93,14 +112,19 @@ word ([^\t \n\"\?\\\'\&><\|]|\\&|\\\"|\\>|\\<|\\\'|\\\|)+
                                             return WORD;
                                           }
                                         }
+{pattern}                              { fprintf(stderr, "YAY A PATTERN! %s\n", yytext); 
+                                         yylval.s = strdup(yytext); return PATTERN;}
+
+                                         
 \&                                      {return *yytext;}
 2>					                            {return RE_STDERR;}
 \&1                                     {return STDOUT;}
-[|]                                       {firstWord=1; fprintf(stderr, "pipe, first word = %d\n", firstWord); return *yytext;}
-[><\n]                 		            {return *yytext;}
+[|]                                     {firstWord=1; fprintf(stderr, "pipe, first word = %d\n", firstWord); return *yytext;}
+[><]                   		              {return *yytext;}
+[\n]                                    {++inputlineno; return *yytext;}
 [ \t]+                		              {;}
-.                       		            { yyerror("Invalid character! %s\n", yytext);}
-<<EOF>>                             { if ( --include_stack_ptr < 0 ) {
+.                       		            { yyerror("Invalid character!\n");}
+<<EOF>>                                 { if ( --include_stack_ptr < 0 ) {
                                               fprintf(stderr, "include_stack_ptr=%d\n eof\n", include_stack_ptr);
                                               yyterminate();
                                             } else {

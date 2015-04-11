@@ -10,7 +10,6 @@
  * ParamsNode: a node with two params
  */
 
-#define BYE 3
 #define OK 0
 #define ERRORS 1
 
@@ -36,6 +35,7 @@ Node *RootNode;
 int runBG;
 int doneParsing;
 int firstWord;
+int inputlineno;
 
 Node *new_command(char* command, Node *childparams);
 Node *new_pipe(Node *command, Node *pipe);
@@ -56,6 +56,4 @@ void displayPrompt(void);
 void initialize(void);
 int main(void);
 
-char* getVar(char *inputstr);
-char* getAlias(char *inputstr);
 #endif
