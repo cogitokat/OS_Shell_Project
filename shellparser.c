@@ -192,7 +192,9 @@ int evalNode(Node *np) {
 }
 
 int evalRedir(Node *np) {
+  #if defined DEBUG
   fprintf(stderr, "Successful redirection!\n");
+  #endif
   int ret;
   int infd;
   int outfd;
