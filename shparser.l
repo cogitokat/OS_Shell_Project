@@ -34,13 +34,15 @@ pattern ([^\t \n\"\\\'\&><\|]|\\&|\\\"|\\>|\\<|\\\'|\\\|)+
 
 \"                                      {
                                          #if defined DEBUG
-                                         fprintf(stderr, "begin dblquote from initial\n");string_buf_ptr = string_buf; BEGIN(DBLQUOTES);
+                                         fprintf(stderr, "begin dblquote from initial\n");
                                          #endif
+                                         string_buf_ptr = string_buf; BEGIN(DBLQUOTES);
                                          }
 \'                                      {
                                          #if defined DEBUG
-                                         fprintf(stderr, "begin snglquote from initial\n");string_buf_ptr = string_buf; BEGIN(SNGLQUOTES);
+                                         fprintf(stderr, "begin snglquote from initial\n");
                                          #endif
+                                         string_buf_ptr = string_buf; BEGIN(SNGLQUOTES);
                                          }
 
  \$\{{word}\}                           { 
