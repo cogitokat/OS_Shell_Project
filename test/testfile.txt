@@ -1,3 +1,0 @@
-ls | uniq | sort | head
-ls -a -l | uniq | sort -f | head
-something | another thing | umm

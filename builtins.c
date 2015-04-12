@@ -238,7 +238,7 @@ char * getAlias(char *inputstr) {
     while (currEntry != NULL) {
       if (strcmp(currEntry->name, inputstr) == 0 && strcmp(lastExpandedAlias, inputstr) != 0) {
         #if defined DEBUG
-        fprintf(stderr, "Yay, found alias: %s\n", currEntry->name);
+        fprintf(stderr, "Found alias: %s\n", currEntry->name);
         #endif
         strncpy(lastExpandedAlias, currEntry->name, MAX_ALIAS); // Store the most recently expanded alias here
         return currEntry->value;
@@ -248,6 +248,9 @@ char * getAlias(char *inputstr) {
       #endif
       currEntry = currEntry->next;
     }
+  #if defined DEBUG
+  fprintf(stderr, "No alias found\n");
+  #endif
   return NULL;
 }
 

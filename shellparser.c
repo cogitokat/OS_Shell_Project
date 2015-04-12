@@ -13,7 +13,6 @@
 #include "y.tab.h"
 
 extern YY_FLUSH_BUFFER;
-extern FILE * yyin;
 void shell_error(const char *msg, ...);
 
 // Functions for creating different types of nodes and
@@ -207,7 +206,8 @@ int evalRedir(Node *np) {
   }
   
   if (childpid == 0) { // ** Child process
-  
+    signal(SIGINT, SIG_DFL);
+    signal(SIGQUIT, SIG_DFL);
   
     // ** STDIN from file
     if(np->type.RedirNode.infile != NULL) {
@@ -357,7 +357,7 @@ int evalCommand(Node *np) {
     curr = curr->type.ParamsNode.second; // Make curr point to the second node.
   }
   #if defined DEBUG
-  fprintf(stderr, "Executing %s.", paramslist[0]);
+  fprintf(stderr, "Executing %s\n", paramslist[0]);
   #endif
   if (execvp(paramslist[0], paramslist) == -1) { // Execute the command with execvp().
     shell_error("Can't execute %s", paramslist[0]); // Tell us if there's an error.
@@ -379,6 +379,8 @@ int createProcCommand(Node *np)
     waitpid(process, (int *) 0, 0); // so wait.
   }
   else if (process == 0) { // If process == 0, we are in the child...
+    signal(SIGINT, SIG_DFL);
+    signal(SIGQUIT, SIG_DFL);
     ret = evalCommand(np);
   }
   else if (process == -1) { // If process == -1, then something went wrong.
@@ -396,6 +398,9 @@ int evalPipe(Node *np, int in_fd, pid_t pidToWait) {
   #endif
   // Only wait if pidToWait is > 0, meaning it is a child
   if (pidToWait>0) {
+    #if defined DEBUG 
+    fprintf(stderr, "[Parent] Waiting for PID: %ld", (long)pidToWait);
+    #endif
     waitpid(pidToWait, (int*)0, 0);
   }
 
@@ -410,6 +415,8 @@ int evalPipe(Node *np, int in_fd, pid_t pidToWait) {
     }
 
     if (childpid == 0){ // child
+      signal(SIGINT, SIG_DFL);
+      signal(SIGQUIT, SIG_DFL);
       int binum;
       if (dup2(in_fd, STDIN_FILENO) == -1) {
         shell_error("Failed to redirect stdin");
@@ -441,6 +448,8 @@ int evalPipe(Node *np, int in_fd, pid_t pidToWait) {
     childpid = fork();
 
     if (childpid == 0) { // child
+      signal(SIGINT, SIG_DFL);
+      signal(SIGQUIT, SIG_DFL);
       int binum;
       if(in_fd != STDIN_FILENO) {
         if (dup2(in_fd, STDIN_FILENO) != -1) {
@@ -490,11 +499,10 @@ void initialize(void) {
   runBG = 0;
   doneParsing = 0;
   firstWord = 1;
-  inputlineno = 0;
+  inputlineno = 1;
 
   // Alias expansion value
   lastExpandedAlias[0] = '\0';
-
 }
 
 int getCommand(){
@@ -562,10 +570,14 @@ resumePrompt:
 
 void shell_error(const char *msg, ...){
   va_list argptr;
-  fprintf(stderr, "Line %d: ", inputlineno);
+  if (!isatty(0))
+    fprintf(stderr, "Line %d: ", inputlineno);
   va_start(argptr, msg);
   vfprintf(stderr, msg, argptr);
   va_end(argptr);
-  fprintf(stderr, ", %s\n", strerror(errno));
+  if (errno != 0)
+    fprintf(stderr, ", %s\n", strerror(errno));
+  errno = 0;
+  return;
 }
 

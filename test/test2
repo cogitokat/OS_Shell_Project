@@ -1,0 +1,5 @@
+setenv test value1
+setenv ${test} value2
+setenv setenv setenv
+${setenv} ${test} ls
+${value1}

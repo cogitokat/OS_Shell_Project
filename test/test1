@@ -1,0 +1,6 @@
+setenv code "tr a-zA-Z n-za-mN-ZA-M"
+setenv message "The quick brown fox jumps over the lazy dog"
+alias rot13 ${code}
+echo ${message} > /tmp/test1
+rot13 < /tmp/test1 > /tmp/test2
+cat /tmp/test2 | rot13 &

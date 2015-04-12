@@ -1,2 +1,0 @@
-ls -l | wc
-cat myShell.c

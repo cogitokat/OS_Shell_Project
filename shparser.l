@@ -1,28 +1,32 @@
 %{
 #include <stdio.h>
 #include <string.h>
+#include <pwd.h>
 #include "shellparser.h"
 #include "builtins.h"
 #include "y.tab.h"
 
-#define MAX_STR_SIZE 1000
-#define MAX_INCLUDE_DEPTH 10
+#define MAX_STR_SIZE 3000
+#define MAX_INCLUDE_DEPTH 30
 YY_BUFFER_STATE include_stack[MAX_INCLUDE_DEPTH];
 int include_stack_ptr = 0;
+char word_buf[MAX_STR_SIZE];
 
+void stripEscapes(const char *inputstr);
 
 %}
 
-word ([^\t \n\"\?\\\'\&><\|\*]|\\&|\\\"|\\>|\\<|\\\'|\\\|)+
-pattern ([^\t \n\"\\\'\&><\|]|\\&|\\\"|\\>|\\<|\\\'|\\\|)+
+word ([^\t \n\"\?\'\&><\|\*]|\\&|\\\ |\\\"|\\>|\\<|\\\'|\\\|\\*)+
+pattern ([^\t \n\"\\\'\&><\|]|\\&|\\\ |\\\"|\\>|\\<|\\\'|\\\|)+
+
 %x DBLQUOTES
 %x SNGLQUOTES
-%x VARIABLE
 %s PROCESS
 
 %%
                                         char string_buf[MAX_STR_SIZE];
                                         char *string_buf_ptr;
+                                        
                                         
                                         { if (firstWord==1) {
                                             BEGIN(PROCESS);
@@ -31,7 +35,6 @@ pattern ([^\t \n\"\\\'\&><\|]|\\&|\\\"|\\>|\\<|\\\'|\\\|)+
                                             #endif
                                           }
                                         }
-
 \"                                      {
                                          #if defined DEBUG
                                          fprintf(stderr, "begin dblquote from initial\n");
@@ -44,7 +47,7 @@ pattern ([^\t \n\"\\\'\&><\|]|\\&|\\\"|\\>|\\<|\\\'|\\\|)+
                                          #endif
                                          string_buf_ptr = string_buf; BEGIN(SNGLQUOTES);
                                          }
-
+ 
  \$\{{word}\}                           { 
                                           #if defined DEBUG
                                           fprintf(stderr, "Hi, variable!\n");
@@ -63,28 +66,82 @@ pattern ([^\t \n\"\\\'\&><\|]|\\&|\\\"|\\>|\\<|\\\'|\\\|)+
                                           }
                                         }
 
+~                                      {
+                                          #if defined DEBUG
+                                          fprintf(stderr, "Hi, tilde! yytext: %s\n", yytext);
+                                          #endif
+                                          char *homedir;
+                                          homedir = getenv("HOME");
+                                          yylval.s = strdup(homedir);
+                                          return WORD;
+                                       }
+
+~{word}                                {
+                                          #if defined DEBUG
+                                          fprintf(stderr, "Hi, tildeword! yytext: %s\n", yytext);
+                                          #endif
+                                          char subseq[yyleng];
+                                          char *token;
+                                          char *userdir;
+                                          struct passwd *pwd;
+                                          char finalpath[1024];
+                                          memcpy(subseq, &yytext[1], yyleng-1);
+                                          subseq[yyleng-1] = '\0';
+                                          stripEscapes(subseq);
+                                          token = strtok(word_buf, "/");
+                                          #if defined DEBUG
+                                          fprintf(stderr, "first token: %s\n", token);
+                                          #endif
+                                          pwd = getpwnam(token);
+                                          if (pwd == NULL){
+                                            yylval.s = strdup(yytext);
+                                          } else {
+                                            userdir = pwd->pw_dir;
+                                            strcpy(finalpath, userdir);
+                                            #if defined DEBUG
+                                            fprintf(stderr, "copied %s to finalpath\n", userdir);
+                                            #endif
+                                            token = strtok(NULL, "/");
+                                            while (token != NULL) {
+                                              strcat(finalpath, "/");
+                                              strcat(finalpath, token);
+                                              #if defined DEBUG
+                                              fprintf(stderr, "token: %s\n", token);
+                                              #endif
+                                              token = strtok(NULL, "/");
+                                              #if defined DEBUG
+                                              fprintf(stderr, "updated path: %s\n", finalpath);
+                                              #endif
+                                            }
+                                            #if defined DEBUG
+                                            fprintf(stderr, "final path: %s\n", finalpath);
+                                            #endif
+                                            yylval.s = strdup(finalpath);
+                                          }
+                                          return WORD;
+                                       }
+
 <DBLQUOTES>{
-[^\\"\n]*      { char *yptr = yytext;
+[^\"\n]*        { char *yptr = yytext;
                    while ( *yptr )
                    *string_buf_ptr++ = *yptr++;
-               }
+                 }
 \n               { printf(">> "); *string_buf_ptr++ = '\n'; }
-\\n              { *string_buf_ptr++ = '\n'; }
-\\t              { *string_buf_ptr++ = '\t'; }
 \\[\\"]          { *string_buf_ptr++ = yytext[1];}
 \"               { *string_buf_ptr = '\0';
+                   #if defined DEBUG
+                   fprintf(stderr, "string is: %s", string_buf);
+                   #endif
                    yylval.s = strdup(string_buf); BEGIN(INITIAL); 
                    return WORD;}
 }
 
 <SNGLQUOTES>{
-[^\\'\n]*      { char *yptr = yytext;
+[^\'\n]*        { char *yptr = yytext;
                    while ( *yptr )
                    *string_buf_ptr++ = *yptr++;
-               }
+                 }
 \n               { printf(">> "); *string_buf_ptr++ = '\n'; }
-\\n              { *string_buf_ptr++ = '\n'; }
-\\t              { *string_buf_ptr++ = '\t'; }
 \\[\\']          { *string_buf_ptr++ = yytext[1];}
 \'               { *string_buf_ptr = '\0';
                    yylval.s = strdup(string_buf); BEGIN(INITIAL); 
@@ -93,16 +150,19 @@ pattern ([^\t \n\"\\\'\&><\|]|\\&|\\\"|\\>|\\<|\\\'|\\\|)+
 
 <PROCESS>{
 [ \t]+                		              {;}
-{word}    { char *alvalue;
-              if ((alvalue = getAlias(yytext)) != NULL && firstWord == 1){
+{word}      { char *alvalue;
+              stripEscapes(yytext);
+              if ((alvalue = getAlias(word_buf)) != NULL && firstWord == 1){
                 if ( include_stack_ptr >= MAX_INCLUDE_DEPTH ) {
                   #if defined DEBUG
                   fprintf(stderr, "Cannot expand alias: nested too deeply.\n");
                   #endif
-                  yylval.s = strdup(yytext);
+                  yylval.s = strdup(word_buf);
                   return WORD;
                 }
+                #if defined DEBUG
                 fprintf(stderr, "alvalue: %s\n", alvalue);
+                #endif
                 include_stack[include_stack_ptr++] = YY_CURRENT_BUFFER;
                 yy_scan_string(alvalue);
                 #if defined DEBUG
@@ -111,18 +171,16 @@ pattern ([^\t \n\"\\\'\&><\|]|\\&|\\\"|\\>|\\<|\\\'|\\\|)+
                 #endif
                 BEGIN(INITIAL);
               } else {
-                yylval.s = strdup(yytext);
+                yylval.s = strdup(word_buf);
                 firstWord=0;
                 #if defined DEBUG
-                fprintf(stderr, "not an alias-> %s\n", yytext);
+                fprintf(stderr, "not an alias-> %s\n", word_buf);
                 fprintf(stderr, "first word = %d\n", firstWord);
                 #endif
                 return WORD;
+              }
             }
-          }
 }
-
-
 
 {word}                                  { if(firstWord==1) {
                                             #if defined DEBUG
@@ -141,11 +199,12 @@ pattern ([^\t \n\"\\\'\&><\|]|\\&|\\\"|\\>|\\<|\\\'|\\\|)+
                                             return WORD;
                                           }
                                         }
-{pattern}                              { 
+{pattern}                               { 
                                          #if defined DEBUG
-                                         fprintf(stderr, "YAY A PATTERN! %s\n", yytext); 
+                                         fprintf(stderr, "Found a pattern %s\n", yytext); 
                                          #endif
-                                         yylval.s = strdup(yytext); return PATTERN;}
+                                         stripEscapes(yytext);
+                                         yylval.s = strdup(word_buf); return PATTERN;}
 
                                          
 \&                                      {return *yytext;}
@@ -158,8 +217,8 @@ pattern ([^\t \n\"\\\'\&><\|]|\\&|\\\"|\\>|\\<|\\\'|\\\|)+
                                          return *yytext;}
 [><]                   		              {return *yytext;}
 [\n]                                    {++inputlineno; return *yytext;}
-[ \t]+                		              {;}
-.                       		            { yyerror("Invalid character!\n");}
+[ ]+                 		                {;}
+
 <<EOF>>                                 { if ( --include_stack_ptr < 0 ) {
                                             #if defined DEBUG
                                             fprintf(stderr, "include_stack_ptr=%d\n eof\n", include_stack_ptr);
@@ -179,4 +238,23 @@ pattern ([^\t \n\"\\\'\&><\|]|\\&|\\\"|\\>|\\<|\\\'|\\\|)+
 int yywrap(void)
 {
   return 1;
+}
+
+void stripEscapes(const char *inputstr) {
+  int inputlen = strlen(inputstr);
+  int i;
+  int n = 0;
+  for (i=0; i<inputlen; i++) {
+    if (inputstr[i] == '\\' && inputstr[i+1] == '\\') {
+      word_buf[n++] = '\\';
+    }else if (inputstr[i] == '\\' && inputstr[i+1] != '\\') {
+      word_buf[n++] = inputstr[++i];
+    } else {
+      word_buf[n++] = inputstr[i];
+    }
+  }
+  word_buf[n++] = '\0';
+  #if defined DEBUG
+  fprintf(stderr, "wordbuff: %s\n", word_buf);
+  #endif
 }
