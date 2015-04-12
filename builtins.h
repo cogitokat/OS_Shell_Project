@@ -1,4 +1,4 @@
-#define MAX_ALIAS 100
+#define MAX_LENGTH 1024
 
 typedef struct {
   char* cmdname;
@@ -10,8 +10,8 @@ extern int ncmds;
 
 
 typedef struct AliasEntry {
-  char name[MAX_ALIAS];
-  char value[MAX_ALIAS];
+  char name[MAX_LENGTH];
+  char value[MAX_LENGTH];
   struct AliasEntry *next;
 } AliasEntry;
 
@@ -27,5 +27,5 @@ extern int x_printalias(int, char *[]);
 extern int x_bye(int, char *[]);
 
 extern char* getAlias(char *inputstr);
-char lastExpandedAlias[MAX_ALIAS];
+char lastExpandedAlias[MAX_LENGTH];
 

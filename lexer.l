@@ -6,7 +6,7 @@
 #include "builtins.h"
 #include "y.tab.h"
 
-#define MAX_STR_SIZE 3000
+#define MAX_STR_SIZE 1024
 #define MAX_INCLUDE_DEPTH 30
 YY_BUFFER_STATE include_stack[MAX_INCLUDE_DEPTH];
 int include_stack_ptr = 0;

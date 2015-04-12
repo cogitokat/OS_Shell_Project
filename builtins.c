@@ -146,8 +146,8 @@ int x_alias(int nargs, char *args[]) {
         shell_error("Unable to allocate memory for new alias");
         return -1;
       }
-      strncpy(newNode->name, args[0], MAX_ALIAS);
-      strncpy(newNode->value, args[1], MAX_ALIAS);
+      strncpy(newNode->name, args[0], MAX_LENGTH);
+      strncpy(newNode->value, args[1], MAX_LENGTH);
       rootAlias->next = newNode;
       fprintf(stdout, "Added new alias %s=%s as first item\n", newNode->name, newNode->value);
     } else { 
@@ -155,7 +155,7 @@ int x_alias(int nargs, char *args[]) {
       while (currEntry != NULL) {
         // Check if the variable is in the list, and replace if so.
         if (strcmp(currEntry->name, args[0]) == 0) {
-          strncpy(currEntry->value, args[1], MAX_ALIAS);
+          strncpy(currEntry->value, args[1], MAX_LENGTH);
           fprintf(stdout, "Updated alias %s=%s\n", currEntry->name, currEntry->value);
           return 0;
         } else if (currEntry->next == NULL) { // If the next entry is null, it's the end, so add new entry...
@@ -164,8 +164,8 @@ int x_alias(int nargs, char *args[]) {
             shell_error("Unable to allocate memory for new alias");
             return -1;
           }
-          strncpy(newNode->name, args[0], MAX_ALIAS);
-          strncpy(newNode->value, args[1], MAX_ALIAS);
+          strncpy(newNode->name, args[0], MAX_LENGTH);
+          strncpy(newNode->value, args[1], MAX_LENGTH);
           currEntry->next = newNode;
           fprintf(stderr, "Added new alias %s=%s\n", newNode->name, newNode->value);
           return 0;
@@ -240,7 +240,7 @@ char * getAlias(char *inputstr) {
         #if defined DEBUG
         fprintf(stderr, "Found alias: %s\n", currEntry->name);
         #endif
-        strncpy(lastExpandedAlias, currEntry->name, MAX_ALIAS); // Store the most recently expanded alias here
+        strncpy(lastExpandedAlias, currEntry->name, MAX_LENGTH); // Store the most recently expanded alias here
         return currEntry->value;
       }
       #if defined DEBUG
@@ -248,9 +248,6 @@ char * getAlias(char *inputstr) {
       #endif
       currEntry = currEntry->next;
     }
-  #if defined DEBUG
-  fprintf(stderr, "No alias found\n");
-  #endif
   return NULL;
 }
 

@@ -1,23 +1,23 @@
-# OS_Shell_Project
----
-### Compile
-```
+OS_Shell_Project
+===================
+Compile
+----------------
 make clean && make
-```
-### Run
+
+Run
+----------------
 Interactive:
-```
 ./shell
-```
+
 File input:
-```
 ./shell < inputfile
-```
+
 ### Features
+===================
 * Takes commands in the form of: 
-```
+
 cmd [arg] * [|cmd [arg] * ] * [< fn1]? [ >[>]? fn2 ]? [ 2>fn3 || 2>&1 ] ?[&]?
-```
+
 * Piping, I/O redirection, Background processing
 * Environment variables:
 	* setenv, unsetenv, printenv
@@ -43,6 +43,7 @@ cmd [arg] * [|cmd [arg] * ] * [< fn1]? [ >[>]? fn2 ]? [ 2>fn3 || 2>&1 ] ?[&]?
 	* Tilde expansion occurs at the beginning of a word
     * Not implemented: tilde expansion within PATH variable
     
-### Not implemented
+Not implemented
+==================
 * File completion
 * Tilde expansion in PATH variable

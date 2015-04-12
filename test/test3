@@ -1,1 +1,1 @@
-time head -c 100000 /dev/urandom | strings | sort | head
+time head -c 50000 /dev/urandom | strings | sort | head
