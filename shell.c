@@ -8,7 +8,7 @@
 #include <signal.h>
 #include <errno.h>
 #include <stdarg.h>
-#include "shellparser.h"
+#include "shell.h"
 #include "builtins.h"
 #include "y.tab.h"
 

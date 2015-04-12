@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <glob.h>
 #include "builtins.h"
-#include "shellparser.h"
+#include "shell.h"
 
 extern void yyerror(const char *msg);
 extern int yylineno;

@@ -1,14 +1,14 @@
 all: shell
 
-debug: shparser.l shparser.y shellparser.c shellparser.h builtins.h builtins.c
-	bison -y -d shparser.y
-	flex shparser.l
-	gcc -o shelldbg y.tab.c lex.yy.c shellparser.c builtins.c -D DEBUG
+debug: lexer.l parser.y shell.c shell.h builtins.h builtins.c
+	bison -y -d parser.y
+	flex -d lexer.l
+	gcc -o shelldbg y.tab.c lex.yy.c shell.c builtins.c -D DEBUG
 
-shell: shparser.l shparser.y shellparser.c shellparser.h builtins.h builtins.c
-	bison -y -d shparser.y
-	flex shparser.l
-	gcc -o shell y.tab.c lex.yy.c shellparser.c builtins.c
+shell: lexer.l parser.y shell.c shell.h builtins.h builtins.c
+	bison -y parser.y
+	flex lexer.l
+	gcc -o shell y.tab.c lex.yy.c shell.c builtins.c
 
 
 .PHONY: clean

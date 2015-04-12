@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <pwd.h>
-#include "shellparser.h"
+#include "shell.h"
 #include "builtins.h"
 #include "y.tab.h"
 
